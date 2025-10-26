@@ -295,7 +295,7 @@ GEM
     uri (1.0.4)
     useragent (0.16.11)
     warning (1.5.0)
-    webauthn (3.4.2)
+    webauthn (3.4.3)
       android_key_attestation (~> 0.3.0)
       bindata (~> 2.4)
       cbor (~> 0.5.9)
