@@ -81,11 +81,41 @@ module Rodauth
         require "fileutils"
         FileUtils.mkdir_p(migration_dir)
 
+        # Generate migration content with proper wrapper
+        content = if orm == :sequel
+          sequel_migration_wrapper(generator.generate)
+        else
+          activerecord_migration_wrapper(generator.generate, timestamp)
+        end
+
         # Write migration file
         filepath = File.join(migration_dir, filename)
-        File.write(filepath, generator.generate)
+        File.write(filepath, content)
 
         puts "Created migration: #{filepath}"
+      end
+
+      def sequel_migration_wrapper(migration_content)
+        lines = migration_content.lines.map { |line| "    #{line.rstrip}" }.join("\n")
+        <<~MIGRATION
+          Sequel.migration do
+            change do
+          #{lines}
+            end
+          end
+        MIGRATION
+      end
+
+      def activerecord_migration_wrapper(migration_content, timestamp)
+        class_name = "CreateRodauth#{timestamp}"
+        lines = migration_content.lines.map { |line| "    #{line.rstrip}" }.join("\n")
+        <<~MIGRATION
+          class #{class_name} < ActiveRecord::Migration[7.0]
+            def change
+          #{lines}
+            end
+          end
+        MIGRATION
       end
 
       def detect_orm

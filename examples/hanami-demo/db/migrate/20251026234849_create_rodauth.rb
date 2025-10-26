@@ -21,3 +21,11 @@ create_table :account_verification_keys do
   DateTime :requested_at, null: false, default: Sequel::CURRENT_TIMESTAMP
   DateTime :email_last_sent, null: false, default: Sequel::CURRENT_TIMESTAMP
 end
+
+# Used by the otp feature
+create_table :account_otp_keys do
+  foreign_key :id, :accounts, primary_key: true, type: :Bignum
+  String :key, null: false
+  Integer :num_failures, null: false, default: 0
+  Time :last_use, null: false, default: Sequel::CURRENT_TIMESTAMP
+end
