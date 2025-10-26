@@ -18,4 +18,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rodauth", "~> 2.41"
   spec.add_dependency "rodauth-model", "~> 0.2"
   spec.add_dependency "sequel", "~> 5.0"
+  spec.add_dependency "dry-inflector", "~> 1.1"
 end

@@ -39,11 +39,19 @@ module Rodauth
           # Calls Hanami to verify the CSRF token.
           def hanami_check_csrf!
             return unless hanami_csrf_enabled?
+            return if only_json?  # Disable CSRF for JSON-only APIs
 
-            token = scope.hanami_request.params[hanami_csrf_param]
-            valid = scope.hanami_request.session[:_csrf_token] == token
+            expected_token = scope.hanami_request.session[:_csrf_token]
+            return unless expected_token # No token in session yet
 
-            raise Rodauth::Rack::Hanami::Error, "CSRF token verification failed" unless valid
+            # Check both param and header (for JSON APIs)
+            token = scope.hanami_request.params[hanami_csrf_param] ||
+                    scope.hanami_request.get_header("HTTP_X_CSRF_TOKEN")
+
+            # Timing-safe comparison to prevent timing attacks
+            unless ::Rack::Utils.secure_compare(expected_token, token || "")
+              raise Rodauth::Rack::Hanami::Error, "CSRF token verification failed"
+            end
           end
 
           # Hidden tag with Hanami CSRF token inserted into Rodauth templates.

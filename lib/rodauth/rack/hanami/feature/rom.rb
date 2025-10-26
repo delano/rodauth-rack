@@ -26,8 +26,11 @@ module Rodauth
           def account_from_login(login)
             if rom_container && rom_relation
               relation = rom_relation
-              account_data = relation.where(login_column => login).one
-              account_data&.to_h
+              account_struct = relation.where(login_column => login).one
+              return nil unless account_struct
+
+              # Convert ROM::Struct to Hash with symbolized keys
+              convert_rom_struct_to_hash(account_struct)
             else
               super
             end
@@ -37,8 +40,11 @@ module Rodauth
           def account_from_session
             if rom_container && rom_relation && (id = session_value)
               relation = rom_relation
-              account_data = relation.where(account_id_column => id).one
-              account_data&.to_h
+              account_struct = relation.where(account_id_column => id).one
+              return nil unless account_struct
+
+              # Convert ROM::Struct to Hash with symbolized keys
+              convert_rom_struct_to_hash(account_struct)
             else
               super
             end
@@ -48,7 +54,15 @@ module Rodauth
           def create_account(account_hash)
             if rom_container && rom_relation
               relation = rom_relation
-              relation.insert(account_hash)
+              result = relation.insert(account_hash)
+
+              # Return the inserted account (with generated ID)
+              # ROM insert returns the primary key or changeset result
+              account_id_value = result.is_a?(Hash) ? result[account_id_column] : result
+              return nil unless account_id_value
+
+              account_struct = relation.where(account_id_column => account_id_value).one
+              convert_rom_struct_to_hash(account_struct)
             else
               super
             end
@@ -59,8 +73,26 @@ module Rodauth
             if rom_container && rom_relation && account_id
               relation = rom_relation
               relation.where(account_id_column => account_id).update(updates)
+
+              # Fetch and return updated account
+              updated_struct = relation.where(account_id_column => account_id).one
+              convert_rom_struct_to_hash(updated_struct)
             else
               super
+            end
+          end
+
+          private
+
+          # Convert ROM::Struct to Hash with symbolized keys
+          def convert_rom_struct_to_hash(rom_struct)
+            return nil unless rom_struct
+
+            if rom_struct.respond_to?(:to_h)
+              rom_struct.to_h.transform_keys(&:to_sym)
+            else
+              # Fallback for ROM structs without to_h
+              rom_struct.attributes.transform_keys(&:to_sym)
             end
           end
         end

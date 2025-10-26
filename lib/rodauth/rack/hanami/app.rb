@@ -39,10 +39,22 @@ module Rodauth
         end
 
         after do
-          hanami_request.session.finalize
+          # Rotate flash messages from :_flash_next to :_flash
+          session_obj = hanami_request.session
+          if session_obj[:_flash_next]
+            session_obj[:_flash] = session_obj.delete(:_flash_next)
+          else
+            session_obj.delete(:_flash)
+          end
+
+          # Finalize session if needed (Hanami auto-commits via middleware)
+          session_obj.finalize if session_obj.respond_to?(:finalize)
         end
 
-        delegate :session, to: :hanami_request
+        # Delegate session to hanami_request
+        def session
+          hanami_request.session
+        end
 
         def hanami_app
           ::Hanami.app
@@ -85,9 +97,20 @@ module Rodauth
 
           # When calling a Rodauth method that redirects inside the Hanami
           # router, Roda's after hook that commits the session would never get
-          # called, so we make sure to commit the session beforehand.
+          # called, so we make sure to rotate flash and commit the session beforehand.
           def redirect(*)
-            scope.hanami_request.session.finalize
+            session_obj = scope.hanami_request.session
+
+            # Rotate flash before redirect
+            if session_obj[:_flash_next]
+              session_obj[:_flash] = session_obj.delete(:_flash_next)
+            else
+              session_obj.delete(:_flash)
+            end
+
+            # Finalize session if needed
+            session_obj.finalize if session_obj.respond_to?(:finalize)
+
             super
           end
         end

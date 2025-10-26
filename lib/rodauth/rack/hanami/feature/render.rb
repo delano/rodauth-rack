@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "dry/inflector"
+
 module Rodauth
   module Rack
     module Hanami
@@ -12,6 +14,8 @@ module Rodauth
           # Renders templates with layout. First tries to render a user-defined
           # template, otherwise falls back to Rodauth's template.
           def view(page, title)
+            return super if only_json?  # Skip HTML rendering for JSON-only APIs
+
             set_title(title)
             hanami_render(template: page.tr("-", "_"), layout: true) ||
               hanami_render(html: super, layout: true)
@@ -60,9 +64,21 @@ module Rodauth
           def find_hanami_view(view_path)
             # Try to find the view class from Hanami app
             # This needs to be customizable per-app
-            view_name = view_path.camelize
-            "Rodauth::Views::#{view_name}".safe_constantize
-          rescue
+            inflector = Dry::Inflector.new
+            view_name = inflector.camelize(view_path)
+
+            # Try to constantize Rodauth::Views::ViewName
+            safe_constantize("Rodauth::Views::#{view_name}")
+          rescue => e
+            # Log error for debugging if logger available
+            logger.debug("Hanami view not found: #{view_name}") if respond_to?(:logger)
+            nil
+          end
+
+          # Safe constantize that returns nil if constant not found
+          def safe_constantize(name)
+            Object.const_get(name)
+          rescue NameError
             nil
           end
 

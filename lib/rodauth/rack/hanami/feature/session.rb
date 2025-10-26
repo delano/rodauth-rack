@@ -26,19 +26,26 @@ module Rodauth
           end
 
           def hanami_flash
-            # Hanami 2.x uses session-based flash
+            # Hanami 2.x uses session-based flash with two-bucket pattern
+            # :_flash holds current request messages
+            # :_flash_next holds next request messages
             scope.hanami_request.session[:_flash] ||= {}
           end
 
-          # Set a flash message that will be available in the next request.
+          def hanami_flash_next
+            scope.hanami_request.session[:_flash_next] ||= {}
+          end
+
+          # Set a flash message that will be available in the NEXT request.
           def set_notice_flash(message)
-            hanami_flash[:notice] = message
+            hanami_flash_next[:notice] = message
           end
 
           def set_error_flash(message)
-            hanami_flash[flash_error_key] = message
+            hanami_flash_next[flash_error_key] = message
           end
 
+          # Set a flash message that is available in the CURRENT request.
           def set_notice_now_flash(message)
             hanami_flash[:notice] = message
           end

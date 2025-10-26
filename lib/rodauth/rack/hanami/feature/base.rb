@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "dry/inflector"
+
 module Rodauth
   module Rack
     module Hanami
@@ -41,7 +43,7 @@ module Rodauth
 
             # Try to find ROM repository or entity first
             if defined?(ROM)
-              entity_name = table.to_s.singularize.camelize
+              entity_name = inflector.camelize(inflector.singularize(table.to_s))
               begin
                 return ::Hanami.app["persistence.rom"].relations[table.to_sym].mapper.entity
               rescue
@@ -50,7 +52,8 @@ module Rodauth
             end
 
             # Fallback to Sequel model
-            table.to_s.classify.constantize
+            class_name = inflector.camelize(table.to_s)
+            safe_constantize(class_name)
           rescue NameError
             raise Error, "cannot infer account model, please set `hanami_account_model` in your rodauth configuration"
           end
@@ -63,6 +66,18 @@ module Rodauth
           end
 
           private
+
+          # Returns a thread-safe inflector instance
+          def inflector
+            @inflector ||= Dry::Inflector.new
+          end
+
+          # Safe constantize that returns nil if constant not found
+          def safe_constantize(name)
+            Object.const_get(name)
+          rescue NameError
+            nil
+          end
 
           def instantiate_hanami_account
             if defined?(ROM::Struct) && hanami_account_model < ROM::Struct

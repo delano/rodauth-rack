@@ -60,7 +60,19 @@ module Rodauth
           # Try to find a Rodauth-specific mailer in the Hanami app.
           def find_rodauth_mailer
             # This should be customized per-app
-            "Mailers::Rodauth".safe_constantize rescue nil
+            # Try to constantize Mailers::Rodauth
+            safe_constantize("Mailers::Rodauth")
+          rescue => e
+            # Log error for debugging if logger available
+            logger.debug("Rodauth mailer not found: Mailers::Rodauth") if respond_to?(:logger)
+            nil
+          end
+
+          # Safe constantize that returns nil if constant not found
+          def safe_constantize(name)
+            Object.const_get(name)
+          rescue NameError
+            nil
           end
         end
       end
