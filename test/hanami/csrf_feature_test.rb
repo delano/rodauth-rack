@@ -6,16 +6,30 @@ class CsrfFeatureTest < HanamiTestCase
     auth_class = Class.new(Rodauth::Auth) do
       configure do
         enable :hanami
+        enable :json
       end
     end
 
-    # Create mock scope with Hanami request
-    mock_scope = Object.new
+    # Create mock scope class with opts
+    mock_scope_class = Class.new do
+      def self.opts
+        {}
+      end
+
+      def hanami_request
+        @hanami_request
+      end
+
+      def initialize(request)
+        @hanami_request = request
+      end
+    end
+
     mock_request = Hanami::Action::Request.new
     mock_request.session[:_csrf_token] = "valid_token_12345"
     mock_request.params["_csrf_token"] = "valid_token_12345"
 
-    mock_scope.define_singleton_method(:hanami_request) { mock_request }
+    mock_scope = mock_scope_class.new(mock_request)
 
     auth_instance = auth_class.allocate
     auth_instance.instance_variable_set(:@scope, mock_scope)
@@ -30,6 +44,7 @@ class CsrfFeatureTest < HanamiTestCase
     auth_class = Class.new(Rodauth::Auth) do
       configure do
         enable :hanami
+        enable :json
         only_json? false  # Ensure CSRF is enabled
       end
     end
@@ -60,6 +75,7 @@ class CsrfFeatureTest < HanamiTestCase
     auth_class = Class.new(Rodauth::Auth) do
       configure do
         enable :hanami
+        enable :json
       end
     end
 
@@ -84,6 +100,7 @@ class CsrfFeatureTest < HanamiTestCase
     auth_class = Class.new(Rodauth::Auth) do
       configure do
         enable :hanami
+        enable :json
       end
     end
 

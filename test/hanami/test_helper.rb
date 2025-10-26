@@ -21,6 +21,10 @@ module Hanami
     end
   end
 
+  def self.app
+    App
+  end
+
   module Action
     class Request
       attr_accessor :session, :params, :env
@@ -43,31 +47,13 @@ module Rodauth
     module Hanami
       class Error < StandardError
       end
-
-      module Feature
-      end
     end
   end
 end
 
-# Load individual Hanami feature modules
-require_relative "../../lib/rodauth/rack/hanami/feature/base"
-require_relative "../../lib/rodauth/rack/hanami/feature/csrf"
-require_relative "../../lib/rodauth/rack/hanami/feature/session"
-require_relative "../../lib/rodauth/rack/hanami/feature/render"
-require_relative "../../lib/rodauth/rack/hanami/feature/email"
-
-# Define the :hanami feature for Rodauth
-Rodauth::Feature.define(:hanami) do
-  Rodauth::Rack::Hanami::Feature::RodauthFeature = self
-  Rodauth::Rack::Hanami::FeatureConfiguration = configuration
-
-  include Rodauth::Rack::Hanami::Feature::Base
-  include Rodauth::Rack::Hanami::Feature::Csrf
-  include Rodauth::Rack::Hanami::Feature::Session
-  include Rodauth::Rack::Hanami::Feature::Render
-  include Rodauth::Rack::Hanami::Feature::Email
-end
+# Load Hanami Auth and App classes (which load the feature modules)
+require_relative "../../lib/rodauth/rack/hanami/auth"
+require_relative "../../lib/rodauth/rack/hanami/app"
 
 class HanamiTestCase < Minitest::Test
   def setup
