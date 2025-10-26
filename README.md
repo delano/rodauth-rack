@@ -1,10 +1,12 @@
 # Rodauth::Rack
 
-Framework-agnostic [Rodauth](http://rodauth.jeremyevans.net) authentication integration for Rack 3 applications. Based on patterns from [rodauth-rails](<https://github.com/>
+Framework-agnostic [Rodauth](http://rodauth.jeremyevans.net) authentication integration for Rack 3 applications. Learning project based on [rodauth-rails](https://github.com/janko/rodauth-rails).
 
 ## Overview
 
-Rodauth::Rack provides core Rodauth authentication functionality for any Rack framework (Rails, Hanami, Sinatra, Roda, etc.) through a flexible adapter interface. This gem extracts the framework-agnostic parts of [rodauth-rails](https://github.com/janko/rodauth-rails) to enable Rodauth integration across the Ruby web framework ecosystem.
+Rodauth::Rack provides core Rodauth authentication functionality for any Rack framework (Rails, Hanami, Sinatra, Roda, etc.) through a flexible adapter interface. This project extracts the framework-agnostic parts of [rodauth-rails](https://github.com/janko/rodauth-rails) to enable Rodauth integration across the Ruby web framework ecosystem.
+
+**Project Status**: Learning/reference project. Not published to RubyGems. Use by cloning or forking this repo.
 
 ## Features
 
@@ -13,15 +15,14 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
 - **Migration Generators**: 19 database migration templates for both ActiveRecord and Sequel
 - **Flexible Middleware**: Easy integration into existing applications
 - **Well Tested**: Comprehensive test suite with >80% coverage
-- **Production Ready**: Battle-tested patterns extracted from rodauth-rails
 
 ## Architecture
 
-> **⚠️ Note for Developers**: The architecture section below reflects the original design. The actual implementation uses a feature-based pattern instead of adapter delegation. See [DEVELOPMENT.md](DEVELOPMENT.md) for the correct architecture.
+The architecture uses a **feature-based pattern** (Rodauth::Feature), NOT an adapter delegation pattern. See [DEVELOPMENT.md](DEVELOPMENT.md) for details.
 
 ### Core Components
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                  Your Application                   │
 │              (Rails, Hanami, Sinatra, etc.)         │
@@ -29,7 +30,7 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
                    │
                    ▼
 ┌─────────────────────────────────────────────────────┐
-│                 rodauth-rack Gem                    │
+│                 rodauth-rack                        │
 │  ┌───────────────────────────────────────────────┐  │
 │  │  Framework Adapters (optional require)        │  │
 │  │  • Rails    (require "rodauth/rack/rails")    │  │
@@ -62,48 +63,6 @@ The `Rodauth::Rack::Adapter::Base` class defines approximately 20 methods that f
 - **Email Delivery**: `deliver_email`
 - **Model Integration**: `account_model`, `find_account`
 - **Configuration**: `rodauth_config`, `db`
-
-## Installation
-
-Add this line to your application's Gemfile:
-
-```ruby
-gem "rodauth-rack"
-```
-
-Then execute:
-
-```bash
-bundle install
-```
-
-### Framework-Specific Setup
-
-Framework adapters are included in the gem but require explicit loading:
-
-**Rails:**
-
-```ruby
-# Gemfile
-gem "rodauth-rack", require: "rodauth/rack/rails"
-
-# Or in config/application.rb
-require "rodauth/rack/rails"
-```
-
-**Hanami:** (coming soon)
-
-```ruby
-# Gemfile
-gem "rodauth-rack", require: "rodauth/rack/hanami"
-```
-
-**Sinatra/Roda:** (coming soon)
-
-```ruby
-# Use migration generators directly
-require "rodauth/rack"
-```
 
 ## Usage
 
@@ -182,56 +141,37 @@ end
 
 **Rails Apps:**
 
-The Rails adapter is included and auto-configured via Railtie:
+**Use [rodauth-rails](https://github.com/janko/rodauth-rails) instead.** This project is primarily for learning and exploring non-Rails Rack integrations.
 
-```ruby
-# Gemfile
-gem "rodauth-rack", require: "rodauth/rack/rails"
-gem "sequel-activerecord_connection"  # Shares ActiveRecord connection with Sequel
-
-# That's it! The adapter is automatically configured.
-# Access rodauth in controllers:
-class ApplicationController < ActionController::Base
-  def current_user
-    @current_user ||= rodauth.rails_account
-  end
-  helper_method :current_user
-end
-```
-
-**Hanami Apps:** (coming soon)
+**Hanami Apps:** (planned)
 
 **Sinatra/Roda Apps:** Use migration generators and implement custom adapter
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt.
 
 ## Related Projects
 
 - [rodauth](https://github.com/jeremyevans/rodauth) - The authentication framework
-- [rodauth-rails](https://github.com/janko/rodauth-rails) - Rails integration (inspiration for this gem)
+- [rodauth-rails](https://github.com/janko/rodauth-rails) - Rails integration (inspiration for this project)
 - [roda](https://github.com/jeremyevans/roda) - Routing tree web toolkit
 
 ## Roadmap
 
-- [x] Issue #1: Core gem skeleton
-- [x] Issue #2: Migration generators (19 features, both ORMs)
-- [ ] Issue #3: Rails adapter (in this gem, optional require)
-- [ ] Issue #4: Hanami adapter (in this gem, optional require)
-- [ ] Issue #5: CLI tool (separate gem for scaffolding)
-- [ ] Issue #6: Demo applications
-
-**Note**: Framework adapters are now included in this gem with optional requires rather than separate gems.
+- [x] Core skeleton
+- [x] Migration generators (19 features, both ORMs)
+- [ ] Rails adapter testing
+- [ ] Hanami adapter
+- [ ] CLI tool (separate project)
+- [ ] Demo applications
 
 ## Acknowledgments
 
-This project is heavily based on [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić. Specifically:
+This project is based on [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić:
 
-- **Migration Templates**: The database migration templates (ActiveRecord and Sequel) are copied directly from rodauth-rails with minimal modifications for framework independence
-- **Generator Patterns**: The migration generator architecture
+- **Migration Templates**: Database migration templates (ActiveRecord and Sequel) copied directly from rodauth-rails with minimal modifications for framework independence
+- **Generator Patterns**: Migration generator architecture
 - **Configuration**: Feature configuration mapping extracted from rodauth-rails
 
 ## AI Development Assistance
@@ -244,4 +184,4 @@ I remain responsible for all design decisions and code. I believe in being trans
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+MIT License

@@ -2,9 +2,9 @@ PATH
   remote: .
   specs:
     rodauth-rack (0.1.0)
-      rack (~> 3.0)
-      roda (~> 3.76)
-      rodauth (~> 2.36)
+      rack (~> 3.2)
+      roda (~> 3.96)
+      rodauth (~> 2.41)
       rodauth-model (~> 0.2)
       sequel (~> 5.0)
 

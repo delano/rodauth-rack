@@ -70,129 +70,6 @@ end
 
 ## Current Project State
 
-### What's Been Completed ✅
-
-**Rails Adapter Core Migration (Issue #3):**
-
-- ✅ 77 files migrated from rodauth-rails
-- ✅ All namespace transformations (`Rodauth::Rails` → `Rodauth::Rack::Rails`)
-- ✅ 7 feature modules implemented (base, callbacks, csrf, email, instrumentation, internal_request, render)
-- ✅ 4 Rails generators with 57 template files (install, migration, views, mailer)
-- ✅ 38 migration templates for both ActiveRecord and Sequel
-- ✅ Dependencies added to gemspec
-- ✅ Comparison test framework created (`test/comparison/`)
-
-**File Structure:**
-
-```
-lib/rodauth/rack/rails/
-├── module.rb (104 LOC - main Rails module)
-├── app.rb (93 LOC - Roda app with Rails integration)
-├── auth.rb (22 LOC - Auth subclass with Rails defaults)
-├── middleware.rb (30 LOC - Rails middleware wrapper)
-├── railtie.rb (38 LOC - Rails initialization)
-├── controller_methods.rb (37 LOC - Rails controller helpers)
-├── mailer.rb (9 LOC - ActionMailer integration)
-├── test.rb + test/controller.rb
-├── feature.rb (23 LOC - feature definition)
-├── feature/
-│   ├── base.rb (85 LOC - core Rails integration)
-│   ├── callbacks.rb (69 LOC - controller callbacks)
-│   ├── csrf.rb (79 LOC - CSRF protection)
-│   ├── email.rb (35 LOC - email delivery)
-│   ├── instrumentation.rb (96 LOC - ActiveSupport notifications)
-│   ├── internal_request.rb (67 LOC - internal requests)
-│   └── render.rb (71 LOC - view rendering)
-└── tasks/ (rake tasks)
-
-lib/generators/rodauth/
-├── install_generator.rb (131 LOC)
-├── migration_generator.rb (209 LOC)
-├── mailer_generator.rb (122 LOC)
-├── views_generator.rb (127 LOC)
-└── templates/ (53 template files)
-
-lib/rodauth/rack/generators/
-└── migration/ (38 .erb migration templates - framework-agnostic)
-```
-
-### What Needs to Be Done Next ⏳
-
-**Priority 1: Test Suite Migration (2-3 days)**
-
-```bash
-# 41 test files need to be migrated:
-../../rodauth-rails/test/ → test/rails/
-
-Critical files to migrate:
-- test_helper.rb (adapt for monorepo)
-- controllers/ (controller integration tests)
-- generators/ (generator tests - verify our generators work)
-- integration/ (9+ integration test files)
-- internal_request_test.rb
-- model_mixin_test.rb
-- rake_test.rb
-- rodauth_test.rb
-```
-
-**Test Migration Checklist:**
-
-- [ ] Copy test files from `../../rodauth-rails/test/` to `test/rails/`
-- [ ] Update `test_helper.rb` to use `require "rodauth/rack/rails"` instead of `require "rodauth-rails"`
-- [ ] Update namespace references in tests (`Rodauth::Rails` → `Rodauth::Rack::Rails`)
-- [ ] Update require paths in tests
-- [ ] Run test suite: `bundle exec rake test` or similar
-- [ ] Fix any failures related to namespace changes
-- [ ] Ensure all 41+ tests pass
-
-**Priority 2: Integration Testing (1 day)**
-
-```bash
-# Create a real Rails app to verify generators work:
-rails new test_app --database=postgresql
-cd test_app
-
-# Add rodauth-rack to Gemfile (local path)
-gem 'rodauth-rack', path: '../rodauth-rack'
-
-# Test generators:
-rails generate rodauth:install
-rails generate rodauth:views
-rails generate rodauth:mailer
-
-# Verify:
-- Files are generated correctly
-- No namespace errors
-- App starts: rails s
-- Authentication flows work
-- Feature modules work (CSRF, flash, rendering, email)
-```
-
-**Integration Test Checklist:**
-
-- [ ] Install generator creates all files correctly
-- [ ] Migration generator creates valid migrations
-- [ ] Views generator creates view templates
-- [ ] Mailer generator creates mailer templates
-- [ ] Rails app starts without errors
-- [ ] Can register a new account
-- [ ] Can login/logout
-- [ ] Password reset flow works
-- [ ] Email verification works
-- [ ] CSRF protection works
-- [ ] Flash messages work
-- [ ] JSON API mode works
-- [ ] JWT mode works
-
-**Priority 3: Documentation (1 day)**
-
-- [ ] Update main `README.md` with Rails adapter section
-- [ ] Create `docs/rails-adapter.md` with detailed Rails usage
-- [ ] Document migration from rodauth-rails to rodauth-rack
-- [ ] Add code examples for common use cases
-- [ ] Document breaking changes (if any)
-- [ ] Update API documentation
-
 ## Key Files and Their Purposes
 
 ### Entry Points
@@ -435,7 +312,7 @@ VERBOSE=1 ruby test/comparison/compare_rails_adapters.rb
 
 ### Step-by-Step Guide (Using Hanami as Example)
 
-**1. Study the Rails Adapter**
+### 1. Study the Rails Adapter
 
 ```bash
 # Read these files in order:
@@ -446,7 +323,7 @@ lib/rodauth/rack/rails/feature.rb     # Feature definition
 lib/rodauth/rack/rails/feature/*.rb   # Feature modules
 ```
 
-**2. Create Framework-Specific Structure**
+### 2. Create Framework-Specific Structure
 
 ```bash
 # Create directory structure:
@@ -455,7 +332,7 @@ mkdir -p lib/rodauth/rack/hanami/tasks
 mkdir -p lib/rodauth/rack/hanami/test
 ```
 
-**3. Implement Core Classes**
+### 3. Implement Core Classes
 
 ```ruby
 # lib/rodauth/rack/hanami/app.rb
@@ -506,7 +383,7 @@ module Rodauth::Rack::Hanami
 end
 ```
 
-**4. Define the Feature**
+### 4. Define the Feature
 
 ```ruby
 # lib/rodauth/rack/hanami/feature.rb
@@ -528,7 +405,7 @@ module Rodauth::Rack::Hanami
 end
 ```
 
-**5. Implement Feature Modules**
+### 5. Implement Feature Modules
 
 ```ruby
 # lib/rodauth/rack/hanami/feature/base.rb
@@ -567,14 +444,14 @@ module Rodauth::Rack::Hanami::Feature
 end
 ```
 
-**6. Create Generators/CLI**
+### 6. Create Generators/CLI
 
 ```ruby
 # For Hanami, create CLI commands or generators
 # Reuse migration templates from lib/rodauth/rack/generators/migration/
 ```
 
-**7. Write Tests**
+### 7. Write Tests
 
 ```ruby
 # test/hanami/feature/base_test.rb
