@@ -40,6 +40,16 @@ Gem::Specification.new do |spec|
   # Development dependencies
   spec.add_development_dependency "rack-test", "~> 2.1"
 
+  # Optional framework dependencies (for development/testing)
+  # Rails adapter support
+  spec.add_development_dependency "rails", ">= 6.0"
+  spec.add_development_dependency "sqlite3", "~> 1.4"
+  spec.add_development_dependency "sequel-activerecord_connection", "~> 1.1"
+
+  # Note: Framework adapters are included but require explicit loading:
+  #   Rails:  require "rodauth/rack/rails"
+  #   Hanami: require "rodauth/rack/hanami"  (coming soon)
+
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end

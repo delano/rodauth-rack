@@ -20,57 +20,57 @@ This document outlines the architecture for `rodauth-rack-rails`, a Rails-specif
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Rails Application                       │
-│  • Controllers (ActionController::Base/API)                 │
-│  • Views (ActionView templates)                             │
-│  • Mailers (ActionMailer)                                   │
-│  • Models (ActiveRecord/Sequel)                             │
-└──────────────────┬──────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                     Rails Application                      │
+│  • Controllers (ActionController::Base/API)                │
+│  • Views (ActionView templates)                            │
+│  • Mailers (ActionMailer)                                  │
+│  • Models (ActiveRecord/Sequel)                            │
+└──────────────────┬─────────────────────────────────────────┘
                    │
                    ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Rodauth::Rack::Rails (New Gem)                 │
+┌────────────────────────────────────────────────────────────┐
+│              Rodauth::Rack::Rails (New Gem)                │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  Railtie (Auto-configuration & Initialization)      │   │
-│  │  • Middleware injection                              │   │
-│  │  • Controller method mixing                          │   │
-│  │  • Test helpers                                      │   │
-│  │  • Rake tasks                                        │   │
+│  │  • Middleware injection                             │   │
+│  │  • Controller method mixing                         │   │
+│  │  • Test helpers                                     │   │
+│  │  • Rake tasks                                       │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  Rails::Adapter (Implements Base Adapter)           │   │
-│  │  • render()          - ActionView integration        │   │
-│  │  • csrf_*()          - RequestForgeryProtection      │   │
-│  │  • flash()           - ActionDispatch::Flash         │   │
-│  │  • deliver_email()   - ActionMailer                  │   │
-│  │  • account_model()   - ActiveRecord/Sequel           │   │
-│  │  • url_for()         - Rails routing                 │   │
+│  │  • render()          - ActionView integration       │   │
+│  │  • csrf_*()          - RequestForgeryProtection     │   │
+│  │  • flash()           - ActionDispatch::Flash        │   │
+│  │  • deliver_email()   - ActionMailer                 │   │
+│  │  • account_model()   - ActiveRecord/Sequel          │   │
+│  │  • url_for()         - Rails routing                │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  Rails::App (Roda middleware subclass)              │   │
-│  │  • Wraps Rodauth in Roda app                         │   │
-│  │  • Handles routing to auth endpoints                 │   │
-│  │  • Integrates with Rails session/flash               │   │
+│  │  • Wraps Rodauth in Roda app                        │   │
+│  │  • Handles routing to auth endpoints                │   │
+│  │  • Integrates with Rails session/flash              │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  Rails::Auth (Rodauth configuration)                │   │
-│  │  • Rails-specific feature modules                    │   │
-│  │  • Default configuration values                      │   │
+│  │  • Rails-specific feature modules                   │   │
+│  │  • Default configuration values                     │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  Rails::ControllerMethods (Mixin)                   │   │
-│  │  • rodauth()         - Access Rodauth instance       │   │
-│  │  • rodauth_response()- Handle Rodauth redirects      │   │
+│  │  • rodauth()         - Access Rodauth instance      │   │
+│  │  • rodauth_response()- Handle Rodauth redirects     │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │  Generators (Rails::Generators::Base)               │   │
-│  │  • InstallGenerator  - Setup Rodauth in Rails        │   │
-│  │  • MigrationGenerator- Database migrations           │   │
-│  │  • MailerGenerator   - Email templates               │   │
-│  │  • ViewsGenerator    - View templates                │   │
+│  │  • InstallGenerator  - Setup Rodauth in Rails       │   │
+│  │  • MigrationGenerator- Database migrations          │   │
+│  │  • MailerGenerator   - Email templates              │   │
+│  │  • ViewsGenerator    - View templates               │   │
 │  └─────────────────────────────────────────────────────┘   │
-└──────────────────┬──────────────────────────────────────────┘
+└──────────────────┬─────────────────────────────────────────┘
                    │
                    ▼
 ┌─────────────────────────────────────────────────────────────┐

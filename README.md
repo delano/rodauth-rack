@@ -27,16 +27,18 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
                    │
                    ▼
 ┌─────────────────────────────────────────────────────┐
-│           Framework-Specific Adapter                │
-│    (rodauth-rack-rails, rodauth-rack-hanami, etc.)  │
-└──────────────────┬──────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│              Rodauth::Rack (Core)                   │
-│  • Adapter::Base (interface)                        │
-│  • Middleware (request routing)                     │
-│  • Configuration                                    │
+│                 rodauth-rack Gem                    │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  Framework Adapters (optional require)       │  │
+│  │  • Rails    (require "rodauth/rack/rails")   │  │
+│  │  • Hanami   (require "rodauth/rack/hanami")  │  │
+│  └───────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  Core Components                              │  │
+│  │  • Adapter::Base (interface)                  │  │
+│  │  • Middleware (request routing)               │  │
+│  │  • Migration Generators (19 features)         │  │
+│  └───────────────────────────────────────────────┘  │
 └──────────────────┬──────────────────────────────────┘
                    │
                    ▼
@@ -73,11 +75,30 @@ Then execute:
 bundle install
 ```
 
-**Note**: For most applications, you'll want to install a framework-specific adapter gem instead:
+### Framework-Specific Setup
 
-- Rails: `gem "rodauth-rack-rails"` (coming soon)
-- Hanami: `gem "rodauth-rack-hanami"` (coming soon)
-- Sinatra/Roda: Use the CLI tool `rodauth-cli` (coming soon)
+Framework adapters are included in the gem but require explicit loading:
+
+**Rails:**
+```ruby
+# Gemfile
+gem "rodauth-rack", require: "rodauth/rack/rails"
+
+# Or in config/application.rb
+require "rodauth/rack/rails"
+```
+
+**Hanami:** (coming soon)
+```ruby
+# Gemfile
+gem "rodauth-rack", require: "rodauth/rack/hanami"
+```
+
+**Sinatra/Roda:** (coming soon)
+```ruby
+# Use migration generators directly
+require "rodauth/rack"
+```
 
 ## Usage
 
@@ -154,11 +175,28 @@ end
 
 ### For Application Developers
 
-See the documentation for your framework-specific adapter:
+**Rails Apps:**
 
-- [rodauth-rack-rails](https://github.com/delano/rodauth-rack-rails) - Rails integration
-- [rodauth-rack-hanami](https://github.com/delano/rodauth-rack-hanami) - Hanami integration
-- [rodauth-cli](https://github.com/delano/rodauth-cli) - CLI for Roda and Sinatra
+The Rails adapter is included and auto-configured via Railtie:
+
+```ruby
+# Gemfile
+gem "rodauth-rack", require: "rodauth/rack/rails"
+gem "sequel-activerecord_connection"  # Shares ActiveRecord connection with Sequel
+
+# That's it! The adapter is automatically configured.
+# Access rodauth in controllers:
+class ApplicationController < ActionController::Base
+  def current_user
+    @current_user ||= rodauth.rails_account
+  end
+  helper_method :current_user
+end
+```
+
+**Hanami Apps:** (coming soon)
+
+**Sinatra/Roda Apps:** Use migration generators and implement custom adapter
 
 ## Development
 
@@ -174,12 +212,14 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Roadmap
 
-- [ ] Issue #1: Core gem (✓ Initial setup complete)
-- [ ] Issue #2: Migration generators
-- [ ] Issue #3: Rails adapter (rodauth-rack-rails)
-- [ ] Issue #4: Hanami adapter (rodauth-rack-hanami)
-- [ ] Issue #5: CLI tool (rodauth-cli)
+- [x] Issue #1: Core gem skeleton
+- [x] Issue #2: Migration generators (19 features, both ORMs)
+- [ ] Issue #3: Rails adapter (in this gem, optional require)
+- [ ] Issue #4: Hanami adapter (in this gem, optional require)
+- [ ] Issue #5: CLI tool (separate gem for scaffolding)
 - [ ] Issue #6: Demo applications
+
+**Note**: Framework adapters are now included in this gem with optional requires rather than separate gems.
 
 ## Contributing
 
