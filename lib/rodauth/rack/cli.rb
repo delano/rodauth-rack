@@ -7,7 +7,7 @@ module Rodauth
     class CLI
       GENERATORS = {
         "hanami:install" => "generators/rodauth/hanami_install/hanami_install_generator",
-        "migration" => "rodauth/rack/generators/migration"
+        "migration" => "generators/migration"
       }.freeze
 
       def self.run(args = ARGV)
@@ -18,7 +18,15 @@ module Rodauth
         @args = args
         @command = args[0]
         @generator_name = args[1]
-        @options = parse_options(args[2..-1] || [])
+        @generator_args = []
+        @options = {}
+
+        if @generator_name == "migration"
+          # For migration, args after generator name are features
+          @generator_args = args[2..-1] || []
+        else
+          @options = parse_options(args[2..-1] || [])
+        end
       end
 
       def run
@@ -35,6 +43,56 @@ module Rodauth
       end
 
       private
+
+      def generate_migration
+        unless @generator_args.any?
+          puts "Error: At least one feature required"
+          puts "Usage: rr generate migration FEATURE [FEATURE...]"
+          puts ""
+          puts "Available features:"
+          puts "  base, remember, verify_account, verify_login_change,"
+          puts "  reset_password, email_auth, otp, otp_unlock, sms_codes,"
+          puts "  recovery_codes, webauthn, lockout, active_sessions,"
+          puts "  audit_logging, jwt_refresh, single_session,"
+          puts "  account_expiration, password_expiration, disallow_password_reuse"
+          exit 1
+        end
+
+        # Convert feature names to symbols
+        features = @generator_args.map(&:to_sym)
+
+        # Detect ORM (prefer Sequel)
+        orm = detect_orm
+
+        # Create generator
+        generator = Rodauth::Rack::Generators::Migration.new(
+          features: features,
+          orm: orm,
+          prefix: "account",
+          db_adapter: :postgresql  # Default, could be made configurable
+        )
+
+        # Output migration
+        timestamp = Time.now.utc.strftime('%Y%m%d%H%M%S')
+        filename = "#{timestamp}_create_rodauth.rb"
+
+        puts "Creating migration: db/migrations/#{filename}"
+        puts ""
+        puts generator.generate
+      end
+
+      def detect_orm
+        # Check if ROM is available
+        if defined?(ROM)
+          :sequel  # ROM uses Sequel
+        elsif defined?(ActiveRecord)
+          :active_record
+        elsif defined?(Sequel)
+          :sequel
+        else
+          :sequel  # Default to Sequel
+        end
+      end
 
       def generate
         unless @generator_name
@@ -56,8 +114,7 @@ module Rodauth
         when "hanami:install"
           Rodauth::Generators::HanamiInstallGenerator.new(@options).generate
         when "migration"
-          puts "Migration generator not yet integrated with CLI"
-          puts "Use: require 'rodauth/rack/generators/migration' directly for now"
+          generate_migration
         end
       end
 
@@ -94,8 +151,9 @@ module Rodauth
 
           Available Generators:
             hanami:install    Generate Rodauth configuration for Hanami 2.x apps
+            migration         Generate database migration for Rodauth features
 
-          Options:
+          Options (for hanami:install):
             --json           Configure JSON API support
             --jwt            Configure JWT authentication
             --argon2         Use Argon2 for password hashing (instead of bcrypt)
@@ -115,6 +173,12 @@ module Rodauth
 
             # With Argon2 password hashing
             rr generate hanami:install --argon2
+
+            # Generate migration for basic features
+            rr generate migration base reset_password verify_account
+
+            # Generate migration for additional features
+            rr generate migration otp recovery_codes webauthn
 
           For more information: https://github.com/delano/rodauth-rack
         HELP
