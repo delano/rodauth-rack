@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Add lib to load path
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "rodauth/rack/cli"
+
+Rodauth::Rack::CLI.run(ARGV)
