@@ -177,17 +177,15 @@ class RailsAdapterComparison
     # Normalize namespace differences
     normalized_rack = normalize_namespace(rack_content)
 
-    if rails_content != normalized_rack
-      # Check if difference is only in whitespace/formatting
-      if rails_content.gsub(/\s+/, "") == normalized_rack.gsub(/\s+/, "")
-        verbose_log "  Minor whitespace difference in #{relative_path} (acceptable)"
-      else
-        record_failure("Content mismatch in #{relative_path}",
-                       "Expected (rodauth-rails): #{rails_content[0..200]}...",
-                       "Got (rodauth-rack): #{rack_content[0..200]}...")
-      end
-    else
+    if rails_content == normalized_rack
       verbose_log "  ✓ #{relative_path} matches"
+    elsif rails_content.gsub(/\s+/, "") == normalized_rack.gsub(/\s+/, "")
+      # Check if difference is only in whitespace/formatting
+      verbose_log "  Minor whitespace difference in #{relative_path} (acceptable)"
+    else
+      record_failure("Content mismatch in #{relative_path}",
+                     "Expected (rodauth-rails): #{rails_content[0..200]}...",
+                     "Got (rodauth-rack): #{rack_content[0..200]}...")
     end
   end
 
@@ -216,7 +214,7 @@ class RailsAdapterComparison
       stdout, stderr, status = Open3.capture3(command)
       unless status.success?
         puts "  ERROR: Command failed: #{command}"
-        puts "  STDERR: #{stderr}" if stderr && !stderr.empty?
+        puts "  STDERR: #{stderr}" if stderr.present?
       end
       stdout + stderr
     end

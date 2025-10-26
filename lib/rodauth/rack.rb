@@ -6,6 +6,7 @@ require_relative "rack/middleware"
 require_relative "rack/generators/migration"
 
 module Rodauth
+  # Rack integration for Rodauth authentication framework
   module Rack
     class Error < StandardError; end
 
@@ -15,6 +16,12 @@ module Rodauth
 
       # Get or set the default account model
       attr_accessor :account_model
+
+      # Delegate to the actual Rack gem to avoid namespace collision
+      # when Rodauth's features check Rack.release
+      delegate :release, to: :"::Rack"
+
+      delegate :release_version, to: :"::Rack"
     end
   end
 end

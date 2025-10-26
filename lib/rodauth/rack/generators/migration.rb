@@ -219,7 +219,7 @@ class String
     def pluralize
       return self if end_with?("s")
 
-      self + "s"
+      "#{self}s"
     end
   end
 

@@ -83,9 +83,7 @@ module Rodauth
         # Get the session object
         #
         # @return [Hash] Session hash
-        def session
-          request.session
-        end
+        delegate :session, to: :request
 
         # Clear the session
         #
@@ -132,9 +130,7 @@ module Rodauth
         # Get the current request path
         #
         # @return [String] Request path
-        def request_path
-          request.path
-        end
+        delegate :path, to: :request, prefix: true
 
         # ====================
         # Email Delivery
@@ -197,16 +193,12 @@ module Rodauth
         # Get request parameters
         #
         # @return [Hash] Request parameters
-        def params
-          request.params
-        end
+        delegate :params, to: :request
 
         # Get request environment
         #
         # @return [Hash] Rack environment
-        def env
-          request.env
-        end
+        delegate :env, to: :request
 
         # Redirect to a path
         #
@@ -221,9 +213,7 @@ module Rodauth
         #
         # @param status [Integer] HTTP status code
         # @return [void]
-        def status=(status)
-          response.status = status
-        end
+        delegate :status=, to: :response
       end
     end
   end

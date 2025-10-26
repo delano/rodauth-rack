@@ -17,17 +17,6 @@ repos:
         args: [--fix=lf]
       - id: detect-private-key
 
-  # Ruby-specific checks
-  - repo: local
-    hooks:
-      - id: rubocop
-        name: rubocop
-        entry: bash -c 'eval "$(rbenv init - bash)" && bundle exec rubocop "$@"' --
-        language: system
-        args: [--autocorrect]
-        types: [ruby]
-        require_serial: true
-
   # Security checks
   - repo: local
     hooks:
