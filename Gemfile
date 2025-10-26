@@ -18,7 +18,7 @@ end
 group :test do
   gem "bcrypt", "~> 3.1"
   gem "capybara"
-  gem "jwt", "~> 2.9"
+  gem "jwt", "~> 3.1"
   gem "rack-test", "~> 2.1"
   gem "rails", ">= 6.0"
   gem "rotp"
