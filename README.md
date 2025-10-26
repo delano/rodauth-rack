@@ -1,6 +1,6 @@
 # Rodauth::Rack
 
-Framework-agnostic [Rodauth](http://rodauth.jeremyevans.net) authentication integration for Rack 3 applications.
+Framework-agnostic [Rodauth](http://rodauth.jeremyevans.net) authentication integration for Rack 3 applications. Based on patterns from [rodauth-rails](<https://github.com/>
 
 ## Overview
 
@@ -17,6 +17,8 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
 
 ## Architecture
 
+> **⚠️ Note for Developers**: The architecture section below reflects the original design. The actual implementation uses a feature-based pattern instead of adapter delegation. See [DEVELOPMENT.md](DEVELOPMENT.md) for the correct architecture.
+
 ### Core Components
 
 ```
@@ -29,9 +31,9 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
 ┌─────────────────────────────────────────────────────┐
 │                 rodauth-rack Gem                    │
 │  ┌───────────────────────────────────────────────┐  │
-│  │  Framework Adapters (optional require)       │  │
-│  │  • Rails    (require "rodauth/rack/rails")   │  │
-│  │  • Hanami   (require "rodauth/rack/hanami")  │  │
+│  │  Framework Adapters (optional require)        │  │
+│  │  • Rails    (require "rodauth/rack/rails")    │  │
+│  │  • Hanami   (require "rodauth/rack/hanami")   │  │
 │  └───────────────────────────────────────────────┘  │
 │  ┌───────────────────────────────────────────────┐  │
 │  │  Core Components                              │  │
@@ -224,9 +226,13 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 **Note**: Framework adapters are now included in this gem with optional requires rather than separate gems.
 
-## Contributing
+## Acknowledgments
 
-Bug reports and pull requests are welcome on GitHub at <https://github.com/delano/rodauth-rack>. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/delano/rodauth-rack/blob/main/CODE_OF_CONDUCT.md).
+This project is heavily based on [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić. Specifically:
+
+- **Migration Templates**: The database migration templates (ActiveRecord and Sequel) are copied directly from rodauth-rails with minimal modifications for framework independence
+- **Generator Patterns**: The migration generator architecture
+- **Configuration**: Feature configuration mapping extracted from rodauth-rails
 
 ## AI Development Assistance
 
@@ -239,17 +245,3 @@ I remain responsible for all design decisions and code. I believe in being trans
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Acknowledgments
-
-This gem extracts and builds upon patterns from [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić, released under the MIT License. Specifically:
-
-- **Migration Templates**: All 19 database migration templates (ActiveRecord and Sequel) are copied directly from rodauth-rails with minimal modifications for framework independence
-- **Generator Patterns**: The migration generator architecture follows rodauth-rails' proven design
-- **Configuration**: Feature configuration mapping extracted from rodauth-rails
-
-We're grateful for the excellent foundation provided by the rodauth-rails project.
-
-## Code of Conduct
-
-Everyone interacting in the Rodauth::Rack project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/delano/rodauth-rack/blob/main/CODE_OF_CONDUCT.md).
