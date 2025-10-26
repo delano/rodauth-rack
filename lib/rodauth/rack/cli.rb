@@ -72,13 +72,20 @@ module Rodauth
           db_adapter: :postgresql  # Default, could be made configurable
         )
 
-        # Output migration
+        # Create migration file
         timestamp = Time.now.utc.strftime('%Y%m%d%H%M%S')
         filename = "#{timestamp}_create_rodauth.rb"
+        migration_dir = "db/migrate"
 
-        puts "Creating migration: db/migrations/#{filename}"
-        puts ""
-        puts generator.generate
+        # Create directory if it doesn't exist
+        require "fileutils"
+        FileUtils.mkdir_p(migration_dir)
+
+        # Write migration file
+        filepath = File.join(migration_dir, filename)
+        File.write(filepath, generator.generate)
+
+        puts "Created migration: #{filepath}"
       end
 
       def detect_orm

@@ -81,10 +81,10 @@ mkdir -p db
 First, generate the Rodauth migration:
 
 ```bash
-rodauth generate migration base reset_password verify_account
+rr generate migration base reset_password verify_account
 ```
 
-This creates a migration file in `db/migrations/`. Then run:
+This creates a migration file in `db/migrate/`. Then run:
 
 ```bash
 bundle exec hanami db migrate
@@ -93,7 +93,7 @@ bundle exec hanami db migrate
 Or manually with Sequel:
 
 ```bash
-bundle exec sequel -m db/migrations sqlite://db/hanami_demo.db
+bundle exec sequel -m db/migrate sqlite://db/hanami_demo.db
 ```
 
 ### 4. Start the Server
@@ -285,7 +285,7 @@ If migrations fail, drop and recreate the database:
 
 ```bash
 rm db/hanami_demo.db
-bundle exec sequel -m db/migrations sqlite://db/hanami_demo.db
+bundle exec sequel -m db/migrate sqlite://db/hanami_demo.db
 ```
 
 ### Rodauth Not Loading

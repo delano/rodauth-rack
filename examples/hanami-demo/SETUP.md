@@ -28,10 +28,10 @@ mkdir -p db
 The Rodauth migration command creates the necessary database tables:
 
 ```bash
-rodauth generate migration base reset_password verify_account
+rr generate migration base reset_password verify_account
 ```
 
-This creates a migration file like `db/migrations/001_create_rodauth_base.rb`.
+This creates a migration file at `db/migrate/TIMESTAMP_create_rodauth.rb`.
 
 Run the migration:
 
@@ -40,7 +40,7 @@ Run the migration:
 bundle exec hanami db migrate
 
 # Option 2: Using Sequel directly
-bundle exec sequel -m db/migrations sqlite://db/hanami_demo.db
+bundle exec sequel -m db/migrate sqlite://db/hanami_demo.db
 ```
 
 ### 4. Start the Server
