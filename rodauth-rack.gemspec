@@ -32,21 +32,27 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Core dependencies
-  spec.add_dependency "rodauth", "~> 2.0"
-  spec.add_dependency "roda", "~> 3.0"
-  spec.add_dependency "sequel", "~> 5.0"
   spec.add_dependency "rack", "~> 3.0"
+  spec.add_dependency "roda", "~> 3.76"
+  spec.add_dependency "rodauth", "~> 2.36"
+  spec.add_dependency "rodauth-model", "~> 0.2"
+  spec.add_dependency "sequel", "~> 5.0"
 
   # Development dependencies
   spec.add_development_dependency "rack-test", "~> 2.1"
 
-  # Optional framework dependencies (for development/testing)
-  # Rails adapter support
+  # Rails adapter development dependencies
+  spec.add_development_dependency "bcrypt", "~> 3.1"
+  spec.add_development_dependency "jwt", "~> 2.9"
   spec.add_development_dependency "rails", ">= 6.0"
+  spec.add_development_dependency "rotp"
+  spec.add_development_dependency "rqrcode"
+  spec.add_development_dependency "sequel-activerecord_connection", "~> 2.0"
   spec.add_development_dependency "sqlite3", "~> 1.4"
-  spec.add_development_dependency "sequel-activerecord_connection", "~> 1.1"
+  spec.add_development_dependency "tilt", "~> 2.4"
+  spec.add_development_dependency "webauthn" unless RUBY_ENGINE == "jruby"
 
-  # Note: Framework adapters are included but require explicit loading:
+  # NOTE: Framework adapters are included but require explicit loading:
   #   Rails:  require "rodauth/rack/rails"
   #   Hanami: require "rodauth/rack/hanami"  (coming soon)
 

@@ -16,14 +16,5 @@ rescue LoadError
 end
 
 require_relative "../rack"
-require_relative "adapters/rails/version"
-require_relative "adapters/rails/adapter"
-require_relative "adapters/rails/railtie"
-
-module Rodauth
-  module Rack
-    module Rails
-      class Error < Rodauth::Rack::Error; end
-    end
-  end
-end
+require_relative "rails/module"
+require_relative "rails/railtie"
