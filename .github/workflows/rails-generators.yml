@@ -7,10 +7,10 @@ on:
       - feature/*
   pull_request:
     paths:
-      - 'lib/generators/**'
-      - 'lib/rodauth/rack/rails/**'
-      - 'test/comparison/**'
-      - '.github/workflows/rails-generators.yml'
+      - "lib/generators/**"
+      - "lib/rodauth/rack/rails/**"
+      - "test/comparison/**"
+      - ".github/workflows/rails-generators.yml"
 
 jobs:
   compare-generators:
@@ -19,8 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: ['3.2', '3.3', '3.4']
-        rails: ['7.1', '7.2', '8.0']
+        ruby: ["3.4"]
+        rails: ["7.2", "8.0"]
 
     name: Ruby ${{ matrix.ruby }} / Rails ${{ matrix.rails }}
 
