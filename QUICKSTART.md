@@ -43,7 +43,7 @@ Branch: `feature/3-rails-adapter`
 
 ## File Structure
 
-```
+```text
 lib/rodauth/rack/rails/
 ├── module.rb              # Main Rails module
 ├── app.rb                 # Roda app (Rails-specific)
@@ -61,32 +61,6 @@ lib/rodauth/rack/rails/
 ```
 
 ## Immediate Next Steps
-
-### Continue Rails Adapter (Issue #3)
-
-```bash
-# 1. Migrate test suite
-cp -r ../../rodauth-rails/test/* test/rails/
-
-# 2. Update test_helper.rb
-# Change: require "rodauth-rails"
-# To: require "rodauth/rack/rails"
-
-# 3. Update namespaces in tests
-# Rodauth::Rails → Rodauth::Rack::Rails
-
-# 4. Run tests
-bundle exec rake test
-
-# 5. Fix failures (mostly namespace issues)
-
-# 6. Integration test
-rails new test_app
-cd test_app
-# Add to Gemfile: gem 'rodauth-rack', path: '../rodauth-rack'
-rails generate rodauth:install
-rails s
-```
 
 ### Start Hanami Adapter (Issue #4)
 
