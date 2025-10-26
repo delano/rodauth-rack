@@ -1,4 +1,4 @@
-class RodauthApp < Rodauth::Rails::App
+class RodauthApp < Rodauth::Rack::Rails::App
   # primary configuration
   configure RodauthMain
 
