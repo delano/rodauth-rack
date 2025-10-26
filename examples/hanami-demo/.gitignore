@@ -1,0 +1,25 @@
+# Database
+db/*.db
+db/*.sqlite3
+
+# Logs
+log/*.log
+
+# Environment
+.env.local
+.env.*.local
+
+# Dependencies
+vendor/bundle/
+
+# System files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Coverage
+coverage/
+
+# Temp files
+tmp/

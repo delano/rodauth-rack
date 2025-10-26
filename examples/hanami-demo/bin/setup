@@ -1,0 +1,85 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'fileutils'
+
+# Setup script for Hanami + Rodauth demo
+
+def setup
+  log "Setting up Hanami + Rodauth demo application"
+
+  within_root_directory do
+    check_ruby_version
+    install_dependencies
+    setup_database
+    show_next_steps
+  end
+end
+
+def log(message)
+  puts "\n==> #{message}"
+end
+
+def check_ruby_version
+  log "Checking Ruby version"
+  required_version = Gem::Version.new('3.1.0')
+  current_version = Gem::Version.new(RUBY_VERSION)
+
+  if current_version < required_version
+    puts "ERROR: Ruby #{required_version} or higher is required (current: #{RUBY_VERSION})"
+    exit 1
+  end
+
+  puts "Ruby #{RUBY_VERSION} ✓"
+end
+
+def install_dependencies
+  log "Installing dependencies"
+  system("bundle check > /dev/null 2>&1") || system!("bundle install")
+end
+
+def setup_database
+  log "Setting up database"
+
+  FileUtils.mkdir_p('db')
+  FileUtils.mkdir_p('db/migrations')
+
+  puts "\nDatabase directory created."
+  puts "You still need to:"
+  puts "  1. Generate migration: rodauth generate migration base reset_password verify_account"
+  puts "  2. Run migration: bundle exec sequel -m db/migrations sqlite://db/hanami_demo.db"
+end
+
+def show_next_steps
+  log "Setup complete!"
+
+  puts <<~NEXT_STEPS
+
+    Next steps:
+
+    1. Generate Rodauth migration:
+       $ rodauth generate migration base reset_password verify_account
+
+    2. Run the migration:
+       $ bundle exec sequel -m db/migrations sqlite://db/hanami_demo.db
+
+    3. Start the server:
+       $ bundle exec hanami server
+
+    4. Open your browser:
+       http://localhost:2300
+
+    For more details, see README.md or SETUP.md
+
+  NEXT_STEPS
+end
+
+def within_root_directory(&block)
+  FileUtils.cd(File.expand_path('..', __dir__), &block)
+end
+
+def system!(*args)
+  system(*args) || abort("\n== Command #{args} failed ==")
+end
+
+setup
