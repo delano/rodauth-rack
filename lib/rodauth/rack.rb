@@ -3,6 +3,7 @@
 require_relative "rack/version"
 require_relative "rack/adapter/base"
 require_relative "rack/middleware"
+require_relative "rack/generators/migration"
 
 module Rodauth
   module Rack

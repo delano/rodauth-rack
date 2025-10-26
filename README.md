@@ -10,6 +10,7 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
 
 - **Framework Agnostic**: Works with any Rack 3 framework
 - **Adapter Interface**: Clean separation between Rodauth core and framework-specific concerns
+- **Migration Generators**: 19 database migration templates for both ActiveRecord and Sequel
 - **Flexible Middleware**: Easy integration into existing applications
 - **Well Tested**: Comprehensive test suite with >80% coverage
 - **Production Ready**: Battle-tested patterns extracted from rodauth-rails
@@ -20,28 +21,28 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  Your Application                    │
+│                  Your Application                   │
 │              (Rails, Hanami, Sinatra, etc.)         │
 └──────────────────┬──────────────────────────────────┘
                    │
                    ▼
 ┌─────────────────────────────────────────────────────┐
-│           Framework-Specific Adapter                 │
+│           Framework-Specific Adapter                │
 │    (rodauth-rack-rails, rodauth-rack-hanami, etc.)  │
 └──────────────────┬──────────────────────────────────┘
                    │
                    ▼
 ┌─────────────────────────────────────────────────────┐
-│              Rodauth::Rack (Core)                    │
+│              Rodauth::Rack (Core)                   │
 │  • Adapter::Base (interface)                        │
-│  • Middleware (request routing)                      │
-│  • Configuration                                     │
+│  • Middleware (request routing)                     │
+│  • Configuration                                    │
 └──────────────────┬──────────────────────────────────┘
                    │
                    ▼
 ┌─────────────────────────────────────────────────────┐
-│                   Rodauth                            │
-│              (Authentication Logic)                  │
+│                   Rodauth                           │
+│              (Authentication Logic)                 │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -79,6 +80,57 @@ bundle install
 - Sinatra/Roda: Use the CLI tool `rodauth-cli` (coming soon)
 
 ## Usage
+
+### Migration Generators
+
+Generate database migrations for Rodauth features:
+
+```ruby
+# For Sequel
+generator = Rodauth::Rack::Generators::Migration.new(
+  features: [:base, :verify_account, :otp],
+  orm: :sequel,
+  prefix: "account"
+)
+
+puts generator.generate  # migration content
+puts generator.configuration  # Rodauth config
+
+# For ActiveRecord
+generator = Rodauth::Rack::Generators::Migration.new(
+  features: [:base, :reset_password],
+  orm: :active_record,
+  prefix: "user",
+  db_adapter: :postgresql
+)
+
+File.write("db/migrate/#{Time.now.utc.strftime('%Y%m%d%H%M%S')}_create_rodauth.rb",
+           generator.generate)
+```
+
+#### Available Features
+
+The generator supports all 19 Rodauth database features:
+
+- `base` - Core accounts table
+- `remember` - Remember me functionality
+- `verify_account` - Account verification
+- `verify_login_change` - Login change verification
+- `reset_password` - Password reset
+- `email_auth` - Passwordless email authentication
+- `otp` - TOTP multifactor authentication
+- `otp_unlock` - OTP unlock
+- `sms_codes` - SMS codes
+- `recovery_codes` - Backup recovery codes
+- `webauthn` - WebAuthn keys
+- `lockout` - Account lockouts
+- `active_sessions` - Session management
+- `account_expiration` - Account expiration
+- `password_expiration` - Password expiration
+- `single_session` - Single session per account
+- `audit_logging` - Authentication audit logs
+- `disallow_password_reuse` - Password history
+- `jwt_refresh` - JWT refresh tokens
 
 ### For Framework Developers
 
@@ -133,13 +185,28 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/delano/rodauth-rack. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/delano/rodauth-rack/blob/main/CODE_OF_CONDUCT.md).
 
+## AI Development Assistance
+
+This project was developed with assistance from AI tools for initial planning and implementation:
+
+- **Claude (Desktop, Code Max plan, Sonnet 4.5)** - Created issue tickets, project scaffolding, gem structure, migration generators, and documentation
+
+I remain responsible for all design decisions and code. I believe in being transparent about development tools, especially as AI becomes more integrated into our workflows as developers. -- delano
+
+
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
 
 ## Acknowledgments
 
-This gem extracts and builds upon patterns from [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić, released under the MIT License. We're grateful for the excellent foundation provided by that project.
+This gem extracts and builds upon patterns from [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić, released under the MIT License. Specifically:
+
+- **Migration Templates**: All 19 database migration templates (ActiveRecord and Sequel) are copied directly from rodauth-rails with minimal modifications for framework independence
+- **Generator Patterns**: The migration generator architecture follows rodauth-rails' proven design
+- **Configuration**: Feature configuration mapping extracted from rodauth-rails
+
+We're grateful for the excellent foundation provided by the rodauth-rails project.
 
 ## Code of Conduct
 
