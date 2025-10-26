@@ -18,3 +18,8 @@ end
 require_relative "../rack"
 require_relative "rails/module"
 require_relative "rails/railtie"
+
+# Compatibility alias for cleaner generated code and easier migration from rodauth-rails
+module Rodauth
+  Rails = Rack::Rails unless defined?(::Rodauth::Rails)
+end
