@@ -5,13 +5,13 @@ require "spec_helper"
 RSpec.describe Rodauth::Rack::Generators::Migration do
   describe "#initialize" do
     it "accepts features as an array" do
-      generator = described_class.new(features: [:base, :verify_account])
-      expect(generator.features).to eq([:base, :verify_account])
+      generator = described_class.new(features: %i[base verify_account])
+      expect(generator.features).to eq(%i[base verify_account])
     end
 
     it "converts features to symbols" do
-      generator = described_class.new(features: ["base", "otp"])
-      expect(generator.features).to eq([:base, :otp])
+      generator = described_class.new(features: %w[base otp])
+      expect(generator.features).to eq(%i[base otp])
     end
 
     it "defaults to sequel ORM" do
@@ -35,15 +35,15 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
     end
 
     it "raises error when no features specified" do
-      expect {
+      expect do
         described_class.new(features: [])
-      }.to raise_error(ArgumentError, /No features specified/)
+      end.to raise_error(ArgumentError, /No features specified/)
     end
 
     it "raises error for invalid ORM" do
-      expect {
+      expect do
         described_class.new(features: [:base], orm: :mongoid)
-      }.to raise_error(ArgumentError, /Invalid ORM/)
+      end.to raise_error(ArgumentError, /Invalid ORM/)
     end
   end
 
@@ -56,7 +56,7 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
     end
 
     it "returns configuration for multiple features" do
-      generator = described_class.new(features: [:base, :remember], prefix: "account")
+      generator = described_class.new(features: %i[base remember], prefix: "account")
       config = generator.configuration
 
       expect(config).to include(
@@ -66,7 +66,7 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
     end
 
     it "handles custom table prefix" do
-      generator = described_class.new(features: [:base, :otp], prefix: "user")
+      generator = described_class.new(features: %i[base otp], prefix: "user")
       config = generator.configuration
 
       expect(config).to include(
@@ -99,7 +99,7 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
 
   describe "#migration_name" do
     it "generates migration name with default prefix" do
-      generator = described_class.new(features: [:base, :verify_account])
+      generator = described_class.new(features: %i[base verify_account])
       expect(generator.migration_name).to eq("create_rodauth_base_verify_account")
     end
 
@@ -134,7 +134,7 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
       end
 
       it "generates migration for multiple features" do
-        generator = described_class.new(features: [:base, :remember], orm: :sequel)
+        generator = described_class.new(features: %i[base remember], orm: :sequel)
         migration = generator.generate
 
         expect(migration).to include("create_table :accounts")
@@ -204,37 +204,37 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
 
     context "with invalid features" do
       it "raises error for unknown feature" do
-        expect {
+        expect do
           described_class.new(features: [:unknown_feature])
-        }.to raise_error(ArgumentError, /No migration template/)
+        end.to raise_error(ArgumentError, /No migration template/)
       end
     end
   end
 
   describe "all available features" do
     let(:all_features) do
-      [
-        :base, :remember, :verify_account, :verify_login_change,
-        :reset_password, :email_auth, :otp, :otp_unlock, :sms_codes,
-        :recovery_codes, :webauthn, :lockout, :active_sessions,
-        :account_expiration, :password_expiration, :single_session,
-        :audit_logging, :disallow_password_reuse, :jwt_refresh
+      %i[
+        base remember verify_account verify_login_change
+        reset_password email_auth otp otp_unlock sms_codes
+        recovery_codes webauthn lockout active_sessions
+        account_expiration password_expiration single_session
+        audit_logging disallow_password_reuse jwt_refresh
       ]
     end
 
     it "has templates for all 19 features in ActiveRecord" do
       all_features.each do |feature|
-        expect {
+        expect do
           described_class.new(features: [feature], orm: :active_record)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
     it "has templates for all 19 features in Sequel" do
       all_features.each do |feature|
-        expect {
+        expect do
           described_class.new(features: [feature], orm: :sequel)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 

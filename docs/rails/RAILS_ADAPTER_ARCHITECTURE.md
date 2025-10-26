@@ -94,38 +94,47 @@ This document outlines the architecture for `rodauth-rack-rails`, a Rails-specif
 The `Rodauth::Rack::Adapter::Base` class defines 20 methods across 6 categories:
 
 ### 1. View Rendering (2 methods)
+
 - `render(template, locals)` - Render view templates
 - `view_path` - Path to template directory
 
 ### 2. CSRF Protection (3 methods)
+
 - `csrf_token` - Get CSRF token value
 - `csrf_field` - Get CSRF field name
 - `valid_csrf_token?(token)` - Validate token
 
 ### 3. Session Management (2 methods)
+
 - `session` - Get session hash (inherited from base)
 - `clear_session` - Clear session (inherited from base)
 
 ### 4. Flash Messages (2 methods)
+
 - `flash` - Get flash hash
 - `flash_now(key, message)` - Set flash message (inherited from base)
 
 ### 5. URL Generation (2 methods)
+
 - `url_for(path, **options)` - Generate full URL
 - `request_path` - Get current path (inherited from base)
 
 ### 6. Email Delivery (1 method)
+
 - `deliver_email(mailer, *args)` - Send email
 
 ### 7. Model Integration (2 methods)
+
 - `account_model` - Get account model class
 - `find_account(id)` - Find account by ID (inherited from base)
 
 ### 8. Configuration (2 methods)
+
 - `rodauth_config` - Get Rodauth configuration
 - `db` - Get database connection
 
 ### 9. Request/Response (4 methods inherited)
+
 - `params` - Request parameters
 - `env` - Rack environment
 - `redirect(path, status:)` - Redirect response
@@ -197,6 +206,7 @@ end
 ```
 
 **Key Features**:
+
 - Creates lightweight controller instance for CSRF and rendering
 - Falls back to Rodauth templates when Rails templates missing
 - Uses sequel-activerecord_connection for database sharing
@@ -246,23 +256,27 @@ end
 Extend Rodauth features with Rails-specific behavior:
 
 **Base Feature** (`lib/rodauth/rack/rails/feature/base.rb`):
+
 - `rails_account` - Get ActiveRecord/Sequel instance
 - `clear_session` - Reset session for security
 - `rails_controller` - Determine controller class
 - `rails_account_model` - Infer model from table
 
 **Render Feature** (`lib/rodauth/rack/rails/feature/render.rb`):
+
 - `view(page, title)` - Render with layout
 - `render(page)` - Render without layout
 - Disables Turbo on Rodauth forms
 - Marks HTML as safe
 
 **CSRF Feature** (`lib/rodauth/rack/rails/feature/csrf.rb`):
+
 - `csrf_tag` - Generate hidden CSRF field
 - `check_csrf` - Verify CSRF token
 - Integrates with Rails RequestForgeryProtection
 
 **Email Feature** (`lib/rodauth/rack/rails/feature/email.rb`):
+
 - `create_email_to` - Use ActionMailer
 - `send_email` - Deliver with ActionMailer
 
@@ -292,6 +306,7 @@ end
 ```
 
 **Usage**:
+
 ```ruby
 class AccountsController < ApplicationController
   def dashboard
@@ -308,6 +323,7 @@ end
 ### 5. Generators
 
 **Install Generator**: Sets up Rodauth in Rails app
+
 - Creates migration
 - Creates Rodauth app class
 - Creates controller
@@ -316,59 +332,71 @@ end
 - Optionally creates mailer and views
 
 **Migration Generator**: Wraps core migration generator
+
 - Uses `Rodauth::Rack::Generators::Migration`
 - Generates ActiveRecord migrations
 - Supports all 19 database features
 
 **Mailer Generator**: Creates ActionMailer templates
+
 - Email templates for all features
 - Text format
 
 **Views Generator**: Creates view templates
+
 - ERB templates for all Rodauth pages
 - Optional Tailwind CSS styling
 
 ## Rails-Specific Integrations
 
 ### CSRF Protection
+
 - Integrates with Rails `protect_from_forgery`
 - Uses Rails CSRF tokens in forms
 - Verifies tokens via Rails mechanism
 
 ### Flash Messages
+
 - Uses ActionDispatch::Flash
 - Default error key is `:alert`
 - Commits flash properly on redirects
 
 ### ActionMailer
+
 - Sends emails via ActionMailer
 - Supports mailer previews
 - Works with ActiveJob for background delivery
 
 ### Session Management
+
 - Uses Rails session store
 - Compatible with all session stores
 - Session fixation protection
 
 ### URL Generation
+
 - Uses Rails route helpers
 - Respects default_url_options
 - Proper URL generation for emails
 
 ### Database Connection
+
 - Sequel shares ActiveRecord pool
 - Uses sequel-activerecord_connection
 - No separate connection overhead
 
 ### Asset Pipeline
+
 - Middleware skips asset requests
 - Compatible with Sprockets and Propshaft
 
 ### Turbo/Hotwire
+
 - Disables Turbo on Rodauth forms
 - Can integrate with Turbo Streams
 
 ### API-Only Mode
+
 - Detects `Rails.configuration.api_only`
 - Uses ActionController::API
 - Skips view rendering in JSON mode
@@ -427,6 +455,7 @@ spec.add_dependency "bcrypt", "~> 3.1"
 ## Implementation Phases
 
 ### Phase 1: Core Adapter (Week 1)
+
 - Create gem structure
 - Implement Adapter class
 - Implement Railtie
@@ -434,6 +463,7 @@ spec.add_dependency "bcrypt", "~> 3.1"
 - RSpec setup
 
 ### Phase 2: Features (Week 2)
+
 - Implement feature modules
 - Implement App class
 - Implement Auth class
@@ -441,18 +471,21 @@ spec.add_dependency "bcrypt", "~> 3.1"
 - Mailer integration
 
 ### Phase 3: Generators (Week 3)
+
 - Install generator
 - Migration generator
 - Mailer generator
 - Views generator
 
 ### Phase 4: Testing (Week 4)
+
 - Integration tests
 - Generator tests
 - Test helpers
 - Documentation
 
 ### Phase 5: Release (Week 5)
+
 - Demo app
 - Security audit
 - Beta release

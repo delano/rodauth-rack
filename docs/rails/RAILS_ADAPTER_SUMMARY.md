@@ -7,6 +7,7 @@
 The Rails adapter implements all 20 methods from `Rodauth::Rack::Adapter::Base`:
 
 **Must Implement (14 methods)**:
+
 - View: `render()`, `view_path()`
 - CSRF: `csrf_token()`, `csrf_field()`, `valid_csrf_token?()`
 - Flash: `flash()`
@@ -16,6 +17,7 @@ The Rails adapter implements all 20 methods from `Rodauth::Rack::Adapter::Base`:
 - Config: `rodauth_config()`, `db()`
 
 **Inherited from Base (6 methods)**:
+
 - Session: `session()`, `clear_session()`
 - Flash: `flash_now()`
 - Request: `params()`, `env()`, `request_path()`
@@ -24,6 +26,7 @@ The Rails adapter implements all 20 methods from `Rodauth::Rack::Adapter::Base`:
 ### 2. Rails Integration Strategy
 
 **Railtie Auto-Configuration**:
+
 - Middleware injection (after session middleware)
 - Controller method mixing (via ActiveSupport.on_load)
 - Test helper setup (for controller and system tests)
@@ -36,12 +39,14 @@ The Rails adapter implements all 20 methods from `Rodauth::Rack::Adapter::Base`:
 **Strategy**: Use `sequel-activerecord_connection` gem
 
 **Benefits**:
+
 - No separate connection pool
 - Shares ActiveRecord's connection
 - Works in transactions alongside ActiveRecord
 - Zero configuration
 
 **Implementation**:
+
 ```ruby
 # Railtie adds middleware
 app.middleware.use Sequel::ActiveRecordConnection::Middleware
@@ -58,6 +63,7 @@ Sequel.postgres(extensions: :activerecord_connection)
 2. Fallback to Rodauth built-in: `rodauth/templates/login.str`
 
 **Benefits**:
+
 - Works out-of-box with Rodauth templates
 - Easy customization via Rails views
 - No forced template generation
@@ -65,6 +71,7 @@ Sequel.postgres(extensions: :activerecord_connection)
 ### 5. Controller Instance Pattern
 
 **Lightweight Controller Creation**:
+
 ```ruby
 def create_controller_instance
   controller = ActionController::Base.new
@@ -75,6 +82,7 @@ end
 ```
 
 **Used For**:
+
 - CSRF token generation/validation
 - Template rendering
 - Rails helper methods
@@ -84,6 +92,7 @@ end
 ### 6. Feature Module Architecture
 
 **Rails-Specific Feature Modules**:
+
 - `Base` - Core Rails integration (accounts, session, controller)
 - `Render` - ActionView integration, Turbo handling
 - `CSRF` - RequestForgeryProtection integration
@@ -91,6 +100,7 @@ end
 - `Callbacks` - Rails lifecycle hooks
 
 **Registered as Rodauth Feature**:
+
 ```ruby
 configure do
   enable :rails  # Auto-includes all modules
@@ -100,6 +110,7 @@ end
 ### 7. Middleware Strategy
 
 **Reloadable Middleware**:
+
 ```ruby
 class Middleware
   def call(env)
@@ -113,6 +124,7 @@ end
 ```
 
 **Asset Pipeline Skip**:
+
 ```ruby
 def asset_request?(env)
   env["PATH_INFO"] =~ %r(\A/{0,2}#{Rails.configuration.assets.prefix})
@@ -143,6 +155,7 @@ end
 ### 9. Testing Integration
 
 **Automatic Test Helper Loading**:
+
 ```ruby
 # Railtie
 ActiveSupport.on_load(:action_controller_test_case) do
@@ -151,6 +164,7 @@ end
 ```
 
 **Helper Methods**:
+
 ```ruby
 # Controller tests
 login(account)
@@ -163,6 +177,7 @@ login(email, password)
 ### 10. JSON/JWT API Support
 
 **Auto-Detection**:
+
 ```ruby
 def rails_controller
   if only_json? && Rails.configuration.api_only
@@ -174,6 +189,7 @@ end
 ```
 
 **Generator Options**:
+
 ```bash
 rails generate rodauth:install --json   # Cookie-based JSON
 rails generate rodauth:install --jwt    # Token-based JWT
@@ -241,6 +257,7 @@ Rails::Generators::Base
 ## Key Patterns from rodauth-rails
 
 **Reused Patterns**:
+
 1. Roda middleware wrapper with Rodauth plugin
 2. Feature module architecture for Rails integration
 3. Controller instance pattern for CSRF/rendering
@@ -251,6 +268,7 @@ Rails::Generators::Base
 8. API-only mode detection
 
 **Improvements over rodauth-rails**:
+
 1. Cleaner adapter interface (from rodauth-rack)
 2. Framework-agnostic core (can build other adapters)
 3. Reusable migration generator
@@ -261,18 +279,21 @@ Rails::Generators::Base
 **From rodauth-rails to rodauth-rack-rails**:
 
 1. Change Gemfile:
+
    ```ruby
    # gem "rodauth-rails"
    gem "rodauth-rack-rails"
    ```
 
 2. Update class inheritance (optional):
+
    ```ruby
    # class RodauthApp < Rodauth::Rails::App
    class RodauthApp < Rodauth::Rack::Rails::App
    ```
 
 3. Run bundle:
+
    ```bash
    bundle install
    ```
@@ -289,6 +310,7 @@ Rails::Generators::Base
 ## Performance Considerations
 
 **Optimizations**:
+
 1. Shared connection pool (no Sequel overhead)
 2. Middleware skips asset requests
 3. Controller instance cached per request
@@ -296,6 +318,7 @@ Rails::Generators::Base
 5. Lazy model inference
 
 **Benchmarks** (planned):
+
 - Login request: < 50ms (p95)
 - CSRF verification: < 1ms
 - Template rendering: < 10ms
@@ -304,6 +327,7 @@ Rails::Generators::Base
 ## Security Features
 
 **Built-in Protections**:
+
 1. CSRF via Rails RequestForgeryProtection
 2. Session fixation via reset_session
 3. HMAC secrets via secret_key_base
@@ -312,6 +336,7 @@ Rails::Generators::Base
 6. XSS via html_safe marking
 
 **Audit Logging** (optional):
+
 ```ruby
 enable :audit_logging
 audit_logging_table :account_authentication_audit_logs
@@ -334,6 +359,7 @@ audit_logging_table :account_authentication_audit_logs
 ## Files to Create
 
 **Core** (7 files):
+
 - `lib/rodauth/rack/rails/adapter.rb`
 - `lib/rodauth/rack/rails/railtie.rb`
 - `lib/rodauth/rack/rails/app.rb`
@@ -343,6 +369,7 @@ audit_logging_table :account_authentication_audit_logs
 - `lib/rodauth/rack/rails/mailer.rb`
 
 **Features** (6 files):
+
 - `lib/rodauth/rack/rails/feature.rb`
 - `lib/rodauth/rack/rails/feature/base.rb`
 - `lib/rodauth/rack/rails/feature/render.rb`
@@ -351,12 +378,14 @@ audit_logging_table :account_authentication_audit_logs
 - `lib/rodauth/rack/rails/feature/callbacks.rb`
 
 **Generators** (4 files):
+
 - `lib/generators/rodauth/install_generator.rb`
 - `lib/generators/rodauth/migration_generator.rb`
 - `lib/generators/rodauth/mailer_generator.rb`
 - `lib/generators/rodauth/views_generator.rb`
 
 **Tests** (10+ files):
+
 - `spec/adapter_spec.rb`
 - `spec/railtie_spec.rb`
 - `spec/integration/login_spec.rb`

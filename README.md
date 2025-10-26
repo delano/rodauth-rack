@@ -80,6 +80,7 @@ bundle install
 Framework adapters are included in the gem but require explicit loading:
 
 **Rails:**
+
 ```ruby
 # Gemfile
 gem "rodauth-rack", require: "rodauth/rack/rails"
@@ -89,12 +90,14 @@ require "rodauth/rack/rails"
 ```
 
 **Hanami:** (coming soon)
+
 ```ruby
 # Gemfile
 gem "rodauth-rack", require: "rodauth/rack/hanami"
 ```
 
 **Sinatra/Roda:** (coming soon)
+
 ```ruby
 # Use migration generators directly
 require "rodauth/rack"
@@ -223,7 +226,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/delano/rodauth-rack. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/delano/rodauth-rack/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at <https://github.com/delano/rodauth-rack>. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/delano/rodauth-rack/blob/main/CODE_OF_CONDUCT.md).
 
 ## AI Development Assistance
 
@@ -232,7 +235,6 @@ This project was developed with assistance from AI tools for initial planning an
 - **Claude (Desktop, Code Max plan, Sonnet 4.5)** - Created issue tickets, project scaffolding, gem structure, migration generators, and documentation
 
 I remain responsible for all design decisions and code. I believe in being transparent about development tools, especially as AI becomes more integrated into our workflows as developers. -- delano
-
 
 ## License
 

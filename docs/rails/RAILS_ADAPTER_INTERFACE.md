@@ -5,6 +5,7 @@ This document specifies the exact interface that `Rodauth::Rack::Rails::Adapter`
 ## Interface Overview
 
 **Total Methods**: 20
+
 - **Must Implement**: 14 methods
 - **Inherited (OK to override)**: 6 methods
 
@@ -17,12 +18,14 @@ This document specifies the exact interface that `Rodauth::Rack::Rails::Adapter`
 **Purpose**: Render a view template with local variables
 
 **Parameters**:
+
 - `template` (String): Template name (e.g., "login", "create_account")
 - `locals` (Hash): Local variables for the template
 
 **Returns**: String - Rendered HTML
 
 **Rails Implementation Strategy**:
+
 ```ruby
 def render(template, locals = {})
   # Try user-defined Rails template
@@ -38,6 +41,7 @@ end
 ```
 
 **Template Resolution Order**:
+
 1. `app/views/rodauth/_#{template}.html.erb` (partial)
 2. `app/views/rodauth/#{template}.html.erb` (view)
 3. Rodauth built-in template
@@ -51,6 +55,7 @@ end
 **Returns**: String - Path to view templates directory
 
 **Rails Implementation**:
+
 ```ruby
 def view_path
   Rails.root.join("app/views/rodauth").to_s
@@ -70,6 +75,7 @@ end
 **Returns**: String - CSRF token value
 
 **Rails Implementation**:
+
 ```ruby
 def csrf_token
   controller_instance.send(:form_authenticity_token)
@@ -87,6 +93,7 @@ end
 **Returns**: String - CSRF field name
 
 **Rails Implementation**:
+
 ```ruby
 def csrf_field
   ActionController::Base.request_forgery_protection_token.to_s
@@ -100,11 +107,13 @@ end
 **Purpose**: Check if the CSRF token is valid
 
 **Parameters**:
+
 - `token` (String): Token to validate
 
 **Returns**: Boolean - True if valid, false otherwise
 
 **Rails Implementation**:
+
 ```ruby
 def valid_csrf_token?(token)
   controller_instance.send(:valid_authenticity_token?, session, token)
@@ -126,6 +135,7 @@ end
 **Returns**: Hash - Flash messages
 
 **Rails Implementation**:
+
 ```ruby
 def flash
   rails_request.flash
@@ -143,12 +153,14 @@ end
 **Purpose**: Generate a full URL for a given path
 
 **Parameters**:
+
 - `path` (String): The path (e.g., "/login")
 - `options` (Hash): URL options (host, protocol, port, etc.)
 
 **Returns**: String - Full URL
 
 **Rails Implementation**:
+
 ```ruby
 def url_for(path, **options)
   Rails.application.routes.url_helpers.url_for(
@@ -178,12 +190,14 @@ end
 **Purpose**: Deliver an email using the framework's mailer
 
 **Parameters**:
+
 - `mailer_method` (Symbol): Mailer method name (e.g., :verify_account)
 - `args` (Array): Arguments to pass to the mailer method
 
 **Returns**: void
 
 **Rails Implementation**:
+
 ```ruby
 def deliver_email(mailer_method, *args)
   RodauthMailer.public_send(mailer_method, *args).deliver_now
@@ -191,6 +205,7 @@ end
 ```
 
 **Mailer Class**:
+
 ```ruby
 class RodauthMailer < ActionMailer::Base
   def verify_account(email, verify_link)
@@ -221,6 +236,7 @@ end
 **Returns**: Class - Account model class
 
 **Rails Implementation**:
+
 ```ruby
 def account_model
   @account_model ||= infer_account_model
@@ -240,11 +256,13 @@ end
 ```
 
 **Examples**:
+
 - Table "accounts" → `Account` class
 - Table "users" → `User` class
 - Table "admin_accounts" → `AdminAccount` class
 
 **Supports**:
+
 - ActiveRecord models
 - Sequel models
 
@@ -261,6 +279,7 @@ end
 **Returns**: Hash - Configuration settings
 
 **Rails Implementation**:
+
 ```ruby
 def rodauth_config
   @rodauth_config ||= load_rodauth_config
@@ -282,6 +301,7 @@ end
 ```
 
 **Configuration Sources**:
+
 1. `config/initializers/rodauth.rb`
 2. `app/misc/rodauth_app.rb`
 3. Defaults
@@ -295,6 +315,7 @@ end
 **Returns**: Sequel::Database - Database connection
 
 **Rails Implementation**:
+
 ```ruby
 def db
   @db ||= configure_sequel_connection
@@ -329,6 +350,7 @@ end
 **Returns**: Hash - Session hash
 
 **Base Implementation**:
+
 ```ruby
 def session
   request.session
@@ -344,6 +366,7 @@ end
 **Returns**: void
 
 **Base Implementation**:
+
 ```ruby
 def clear_session
   request.session.clear
@@ -351,6 +374,7 @@ end
 ```
 
 **Rails Override** (recommended):
+
 ```ruby
 def clear_session
   # Use Rails' reset_session for session fixation protection
@@ -367,12 +391,14 @@ end
 **Purpose**: Set a flash message for the current request
 
 **Parameters**:
+
 - `key` (Symbol): Message type (:notice, :alert, :error)
 - `message` (String): The message text
 
 **Returns**: void
 
 **Base Implementation**:
+
 ```ruby
 def flash_now(key, message)
   flash[key] = message
@@ -392,6 +418,7 @@ end
 **Returns**: Hash - Request parameters
 
 **Base Implementation**:
+
 ```ruby
 def params
   request.params
@@ -405,6 +432,7 @@ end
 **Returns**: Hash - Rack environment
 
 **Base Implementation**:
+
 ```ruby
 def env
   request.env
@@ -418,6 +446,7 @@ end
 **Returns**: String - Request path
 
 **Base Implementation**:
+
 ```ruby
 def request_path
   request.path
@@ -429,12 +458,14 @@ end
 **Purpose**: Redirect to a path
 
 **Parameters**:
+
 - `path` (String): Path to redirect to
 - `status` (Integer): HTTP status code (default: 302)
 
 **Returns**: void
 
 **Base Implementation**:
+
 ```ruby
 def redirect(path, status: 302)
   response.redirect(path, status)
@@ -446,11 +477,13 @@ end
 **Purpose**: Set response status
 
 **Parameters**:
+
 - `status` (Integer): HTTP status code
 
 **Returns**: void
 
 **Base Implementation**:
+
 ```ruby
 def status=(status)
   response.status = status
@@ -510,6 +543,7 @@ end
 **Purpose**: Render Rodauth's built-in ERB template
 
 **Parameters**:
+
 - `template` (String): Template name
 - `locals` (Hash): Local variables
 
@@ -618,6 +652,7 @@ end
 **Total Lines of Code**: ~200-250 LOC
 
 **Key Dependencies**:
+
 - ActionController (CSRF, rendering)
 - ActionView (templates)
 - ActionMailer (emails)
