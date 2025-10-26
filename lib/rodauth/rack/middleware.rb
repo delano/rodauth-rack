@@ -92,7 +92,7 @@ module Rodauth
       # @param env [Hash] Rack environment
       # @param response [Array] Rack response
       # @return [void]
-      def attach_rodauth_instance(env, response)
+      def attach_rodauth_instance(env, _response)
         # Store the Rodauth instance in the environment
         # so it can be accessed in the main application
         env["rodauth"] ||= auth_class.rodauth

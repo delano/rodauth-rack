@@ -1,0 +1,33 @@
+version: 2
+updates:
+  - package-ecosystem: "bundler"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      development:
+        patterns:
+          - "rubocop*"
+          - "bundler-audit"
+      test:
+        patterns:
+          - "rspec"
+          - "capybara"
+          - "rack-test"
+          - "sqlite3"
+          - "rails"
+    # Auto-merge patch and minor updates
+    # Requires GitHub branch protection rules to be configured
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"

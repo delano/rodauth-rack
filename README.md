@@ -1,10 +1,12 @@
 # Rodauth::Rack
 
-Framework-agnostic [Rodauth](http://rodauth.jeremyevans.net) authentication integration for Rack 3 applications.
+Framework-agnostic [Rodauth](http://rodauth.jeremyevans.net) authentication integration for Rack 3 applications. Learning project based on [rodauth-rails](https://github.com/janko/rodauth-rails).
 
 ## Overview
 
-Rodauth::Rack provides core Rodauth authentication functionality for any Rack framework (Rails, Hanami, Sinatra, Roda, etc.) through a flexible adapter interface. This gem extracts the framework-agnostic parts of [rodauth-rails](https://github.com/janko/rodauth-rails) to enable Rodauth integration across the Ruby web framework ecosystem.
+Rodauth::Rack provides core Rodauth authentication functionality for any Rack framework (Rails, Hanami, Sinatra, Roda, etc.) through a flexible adapter interface. This project extracts the framework-agnostic parts of [rodauth-rails](https://github.com/janko/rodauth-rails) to enable Rodauth integration across the Ruby web framework ecosystem.
+
+**Project Status**: Learning/reference project. Not published to RubyGems. Use by cloning or forking this repo.
 
 ## Features
 
@@ -13,13 +15,14 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
 - **Migration Generators**: 19 database migration templates for both ActiveRecord and Sequel
 - **Flexible Middleware**: Easy integration into existing applications
 - **Well Tested**: Comprehensive test suite with >80% coverage
-- **Production Ready**: Battle-tested patterns extracted from rodauth-rails
 
 ## Architecture
 
+The architecture uses a **feature-based pattern** (Rodauth::Feature), NOT an adapter delegation pattern. See [DEVELOPMENT.md](DEVELOPMENT.md) for details.
+
 ### Core Components
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                  Your Application                   │
 │              (Rails, Hanami, Sinatra, etc.)         │
@@ -27,16 +30,18 @@ Rodauth::Rack provides core Rodauth authentication functionality for any Rack fr
                    │
                    ▼
 ┌─────────────────────────────────────────────────────┐
-│           Framework-Specific Adapter                │
-│    (rodauth-rack-rails, rodauth-rack-hanami, etc.)  │
-└──────────────────┬──────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│              Rodauth::Rack (Core)                   │
-│  • Adapter::Base (interface)                        │
-│  • Middleware (request routing)                     │
-│  • Configuration                                    │
+│                 rodauth-rack                        │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  Framework Adapters (optional require)        │  │
+│  │  • Rails    (require "rodauth/rack/rails")    │  │
+│  │  • Hanami   (require "rodauth/rack/hanami")   │  │
+│  └───────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────┐  │
+│  │  Core Components                              │  │
+│  │  • Adapter::Base (interface)                  │  │
+│  │  • Middleware (request routing)               │  │
+│  │  • Migration Generators (19 features)         │  │
+│  └───────────────────────────────────────────────┘  │
 └──────────────────┬──────────────────────────────────┘
                    │
                    ▼
@@ -58,26 +63,6 @@ The `Rodauth::Rack::Adapter::Base` class defines approximately 20 methods that f
 - **Email Delivery**: `deliver_email`
 - **Model Integration**: `account_model`, `find_account`
 - **Configuration**: `rodauth_config`, `db`
-
-## Installation
-
-Add this line to your application's Gemfile:
-
-```ruby
-gem "rodauth-rack"
-```
-
-Then execute:
-
-```bash
-bundle install
-```
-
-**Note**: For most applications, you'll want to install a framework-specific adapter gem instead:
-
-- Rails: `gem "rodauth-rack-rails"` (coming soon)
-- Hanami: `gem "rodauth-rack-hanami"` (coming soon)
-- Sinatra/Roda: Use the CLI tool `rodauth-cli` (coming soon)
 
 ## Usage
 
@@ -154,36 +139,40 @@ end
 
 ### For Application Developers
 
-See the documentation for your framework-specific adapter:
+**Rails Apps:**
 
-- [rodauth-rack-rails](https://github.com/delano/rodauth-rack-rails) - Rails integration
-- [rodauth-rack-hanami](https://github.com/delano/rodauth-rack-hanami) - Hanami integration
-- [rodauth-cli](https://github.com/delano/rodauth-cli) - CLI for Roda and Sinatra
+**Use [rodauth-rails](https://github.com/janko/rodauth-rails) instead.** This project is primarily for learning and exploring non-Rails Rack integrations.
+
+**Hanami Apps:** (planned)
+
+**Sinatra/Roda Apps:** Use migration generators and implement custom adapter
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt.
 
 ## Related Projects
 
 - [rodauth](https://github.com/jeremyevans/rodauth) - The authentication framework
-- [rodauth-rails](https://github.com/janko/rodauth-rails) - Rails integration (inspiration for this gem)
+- [rodauth-rails](https://github.com/janko/rodauth-rails) - Rails integration (inspiration for this project)
 - [roda](https://github.com/jeremyevans/roda) - Routing tree web toolkit
 
 ## Roadmap
 
-- [ ] Issue #1: Core gem (✓ Initial setup complete)
-- [ ] Issue #2: Migration generators
-- [ ] Issue #3: Rails adapter (rodauth-rack-rails)
-- [ ] Issue #4: Hanami adapter (rodauth-rack-hanami)
-- [ ] Issue #5: CLI tool (rodauth-cli)
-- [ ] Issue #6: Demo applications
+- [x] Core skeleton
+- [x] Migration generators (19 features, both ORMs)
+- [ ] Rails adapter testing
+- [ ] Hanami adapter
+- [ ] CLI tool (separate project)
+- [ ] Demo applications
 
-## Contributing
+## Acknowledgments
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/delano/rodauth-rack. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/delano/rodauth-rack/blob/main/CODE_OF_CONDUCT.md).
+This project is based on [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić:
+
+- **Migration Templates**: Database migration templates (ActiveRecord and Sequel) copied directly from rodauth-rails with minimal modifications for framework independence
+- **Generator Patterns**: Migration generator architecture
+- **Configuration**: Feature configuration mapping extracted from rodauth-rails
 
 ## AI Development Assistance
 
@@ -193,21 +182,6 @@ This project was developed with assistance from AI tools for initial planning an
 
 I remain responsible for all design decisions and code. I believe in being transparent about development tools, especially as AI becomes more integrated into our workflows as developers. -- delano
 
-
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Acknowledgments
-
-This gem extracts and builds upon patterns from [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić, released under the MIT License. Specifically:
-
-- **Migration Templates**: All 19 database migration templates (ActiveRecord and Sequel) are copied directly from rodauth-rails with minimal modifications for framework independence
-- **Generator Patterns**: The migration generator architecture follows rodauth-rails' proven design
-- **Configuration**: Feature configuration mapping extracted from rodauth-rails
-
-We're grateful for the excellent foundation provided by the rodauth-rails project.
-
-## Code of Conduct
-
-Everyone interacting in the Rodauth::Rack project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/delano/rodauth-rack/blob/main/CODE_OF_CONDUCT.md).
+MIT License

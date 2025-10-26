@@ -1,0 +1,31 @@
+===============================================================================
+
+  * Ensure you have defined a root path in your config/routes.rb. For example:
+
+      root to: "pages#home"
+
+  * Ensure you're displaying flash messages in your layout template. For example:
+
+      <% if notice %>
+        <div class="alert alert-success"><%= notice %></div>
+      <% end %>
+      <% if alert %>
+        <div class="alert alert-danger"><%= alert %></div>
+      <% end %>
+
+  * Titles for Rodauth pages are available via @page_title instance variable
+    by default, you can use it in your layout file:
+
+      <title><%= @page_title || "Default title" %></title>
+
+  * You can copy Rodauth views into your app by running:
+
+      rails g rodauth:views # default bootstrap views
+
+      rails g rodauth:views --css=tailwind # tailwind views (requires @tailwindcss/forms plugin)
+
+  * You can copy email templates and generate mailer integration by running:
+
+      rails g rodauth:mailer
+
+===============================================================================

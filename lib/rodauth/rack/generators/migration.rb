@@ -27,43 +27,43 @@ module Rodauth
         #
         # Maps feature names to their required table configurations
         CONFIGURATION = {
-          base: { accounts_table: "%{plural}" },
-          remember: { remember_table: "%{singular}_remember_keys" },
-          verify_account: { verify_account_table: "%{singular}_verification_keys" },
-          verify_login_change: { verify_login_change_table: "%{singular}_login_change_keys" },
-          reset_password: { reset_password_table: "%{singular}_password_reset_keys" },
-          email_auth: { email_auth_table: "%{singular}_email_auth_keys" },
-          otp: { otp_keys_table: "%{singular}_otp_keys" },
-          otp_unlock: { otp_unlock_table: "%{singular}_otp_unlocks" },
-          sms_codes: { sms_codes_table: "%{singular}_sms_codes" },
-          recovery_codes: { recovery_codes_table: "%{singular}_recovery_codes" },
+          base: { accounts_table: "%<plural>s" },
+          remember: { remember_table: "%<singular>s_remember_keys" },
+          verify_account: { verify_account_table: "%<singular>s_verification_keys" },
+          verify_login_change: { verify_login_change_table: "%<singular>s_login_change_keys" },
+          reset_password: { reset_password_table: "%<singular>s_password_reset_keys" },
+          email_auth: { email_auth_table: "%<singular>s_email_auth_keys" },
+          otp: { otp_keys_table: "%<singular>s_otp_keys" },
+          otp_unlock: { otp_unlock_table: "%<singular>s_otp_unlocks" },
+          sms_codes: { sms_codes_table: "%<singular>s_sms_codes" },
+          recovery_codes: { recovery_codes_table: "%<singular>s_recovery_codes" },
           webauthn: {
-            webauthn_keys_table: "%{singular}_webauthn_keys",
-            webauthn_user_ids_table: "%{singular}_webauthn_user_ids",
-            webauthn_keys_account_id_column: "%{singular}_id"
+            webauthn_keys_table: "%<singular>s_webauthn_keys",
+            webauthn_user_ids_table: "%<singular>s_webauthn_user_ids",
+            webauthn_keys_account_id_column: "%<singular>s_id"
           },
           lockout: {
-            account_login_failures_table: "%{singular}_login_failures",
-            account_lockouts_table: "%{singular}_lockouts"
+            account_login_failures_table: "%<singular>s_login_failures",
+            account_lockouts_table: "%<singular>s_lockouts"
           },
           active_sessions: {
-            active_sessions_table: "%{singular}_active_session_keys",
-            active_sessions_account_id_column: "%{singular}_id"
+            active_sessions_table: "%<singular>s_active_session_keys",
+            active_sessions_account_id_column: "%<singular>s_id"
           },
-          account_expiration: { account_activity_table: "%{singular}_activity_times" },
-          password_expiration: { password_expiration_table: "%{singular}_password_change_times" },
-          single_session: { single_session_table: "%{singular}_session_keys" },
+          account_expiration: { account_activity_table: "%<singular>s_activity_times" },
+          password_expiration: { password_expiration_table: "%<singular>s_password_change_times" },
+          single_session: { single_session_table: "%<singular>s_session_keys" },
           audit_logging: {
-            audit_logging_table: "%{singular}_authentication_audit_logs",
-            audit_logging_account_id_column: "%{singular}_id"
+            audit_logging_table: "%<singular>s_authentication_audit_logs",
+            audit_logging_account_id_column: "%<singular>s_id"
           },
           disallow_password_reuse: {
-            previous_password_hash_table: "%{singular}_previous_password_hashes",
-            previous_password_account_id_column: "%{singular}_id"
+            previous_password_hash_table: "%<singular>s_previous_password_hashes",
+            previous_password_account_id_column: "%<singular>s_id"
           },
           jwt_refresh: {
-            jwt_refresh_token_table: "%{singular}_jwt_refresh_keys",
-            jwt_refresh_token_account_id_column: "%{singular}_id"
+            jwt_refresh_token_table: "%<singular>s_jwt_refresh_keys",
+            jwt_refresh_token_account_id_column: "%<singular>s_id"
           }
         }.freeze
 
@@ -101,9 +101,12 @@ module Rodauth
         # @return [Hash] Configuration hash with table names
         def configuration
           CONFIGURATION.values_at(*features)
-            .compact
-            .reduce({}, :merge)
-            .transform_values { |format| format % { plural: table_prefix.pluralize, singular: table_prefix } }
+                       .compact
+                       .reduce({}, :merge)
+                       .transform_values do |format|
+            format(format, plural: table_prefix.pluralize,
+                           singular: table_prefix)
+          end
         end
 
         # Get the migration name
@@ -127,16 +130,14 @@ module Rodauth
         def validate_feature_templates!
           features.each do |feature|
             template_path = File.join(template_directory, "#{feature}.erb")
-            unless File.exist?(template_path)
-              raise ArgumentError, "No migration template for feature: #{feature}"
-            end
+            raise ArgumentError, "No migration template for feature: #{feature}" unless File.exist?(template_path)
           end
         end
 
         def validate_orm!
-          unless %i[active_record sequel].include?(orm)
-            raise ArgumentError, "Invalid ORM: #{orm}. Must be :active_record or :sequel"
-          end
+          return if %i[active_record sequel].include?(orm)
+
+          raise ArgumentError, "Invalid ORM: #{orm}. Must be :active_record or :sequel"
         end
 
         def create_mock_db
@@ -203,7 +204,7 @@ module Rodauth
           end
 
           def supports_partial_indexes?
-            database_type == :postgres || database_type == :sqlite
+            %i[postgres sqlite].include?(database_type)
           end
         end
       end
@@ -216,14 +217,16 @@ end
 class String
   unless method_defined?(:pluralize)
     def pluralize
-      return self if self.end_with?("s")
-      self + "s"
+      return self if end_with?("s")
+
+      "#{self}s"
     end
   end
 
   unless method_defined?(:singularize)
     def singularize
-      return self unless self.end_with?("s")
+      return self unless end_with?("s")
+
       self[0..-2]
     end
   end
