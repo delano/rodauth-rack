@@ -10,6 +10,12 @@ module Rodauth
   module Rack
     class Error < StandardError; end
 
+    # Aliases to avoid namespace collision with ::Rack gem
+    # When Rodauth code references Rack constants, it should find ::Rack constants
+    Request = ::Rack::Request unless const_defined?(:Request)
+    Utils = ::Rack::Utils unless const_defined?(:Utils)
+    Response = ::Rack::Response unless const_defined?(:Response)
+
     class << self
       # Get or set the default adapter class
       attr_accessor :adapter_class

@@ -44,13 +44,15 @@ Gem::Specification.new do |spec|
 
   # Rails adapter development dependencies
   spec.add_development_dependency "bcrypt", "~> 3.1"
+  spec.add_development_dependency "capybara"
   spec.add_development_dependency "jwt", "~> 2.9"
   spec.add_development_dependency "rails", ">= 6.0"
   spec.add_development_dependency "rotp"
   spec.add_development_dependency "rqrcode"
   spec.add_development_dependency "sequel-activerecord_connection", "~> 2.0"
-  spec.add_development_dependency "sqlite3", "~> 1.4"
+  spec.add_development_dependency "sqlite3", "~> 2.0"
   spec.add_development_dependency "tilt", "~> 2.4"
+  spec.add_development_dependency "warning"
   spec.add_development_dependency "webauthn" unless RUBY_ENGINE == "jruby"
 
   # NOTE: Framework adapters are included but require explicit loading:
