@@ -47,7 +47,7 @@ jobs:
 
       - name: Save test artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: comparison-failure-ruby${{ matrix.ruby }}-rails${{ matrix.rails }}
           path: /tmp/rodauth-comparison-*/
