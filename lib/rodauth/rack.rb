@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "rack"
+
 require_relative "rack/version"
 require_relative "rack/adapter/base"
 require_relative "rack/middleware"
@@ -25,9 +27,13 @@ module Rodauth
 
       # Delegate to the actual Rack gem to avoid namespace collision
       # when Rodauth's features check Rack.release
-      delegate :release, to: :"::Rack"
+      def release
+        ::Rack.release
+      end
 
-      delegate :release_version, to: :"::Rack"
+      def release_version
+        ::Rack.release_version
+      end
     end
   end
 end
