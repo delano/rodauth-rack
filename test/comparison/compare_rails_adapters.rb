@@ -285,4 +285,14 @@ class RailsAdapterComparison
 end
 
 # Run the comparison if executed directly
-RailsAdapterComparison.new.run if __FILE__ == $PROGRAM_NAME
+if __FILE__ == $PROGRAM_NAME
+  begin
+    RailsAdapterComparison.new.run
+  rescue => e
+    puts "\n[ERROR] An unexpected error occurred during comparison:"
+    puts "  #{e.class}: #{e.message}"
+    puts "  Backtrace:"
+    puts e.backtrace.join("\n  ")
+    exit 2
+  end
+end
