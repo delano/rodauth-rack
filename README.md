@@ -143,7 +143,40 @@ end
 
 **Use [rodauth-rails](https://github.com/janko/rodauth-rails) instead.** This project is primarily for learning and exploring non-Rails Rack integrations.
 
-**Hanami Apps:** (planned)
+**Hanami 2.x Apps:**
+
+1. Add to Gemfile:
+
+   ```ruby
+   gem 'rodauth-rack'
+   gem 'tilt', '~> 2.4'
+   gem 'bcrypt', '~> 3.1'
+   ```
+
+2. Run install generator:
+
+   ```bash
+   bin/rr generate hanami:install
+   # or with options:
+   bin/rr generate hanami:install --json  # JSON API
+   bin/rr generate hanami:install --jwt   # JWT authentication
+   ```
+
+3. Generate database migration:
+
+   ```bash
+   bin/rr generate migration base reset_password verify_account
+   ```
+
+4. Run migration:
+
+   ```bash
+   bundle exec hanami db migrate
+   ```
+
+5. Start server and visit <http://localhost:2300/login>
+
+See [Hanami Generator README](lib/generators/rodauth/hanami_install/README.md) for details.
 
 **Sinatra/Roda Apps:** Use migration generators and implement custom adapter
 
