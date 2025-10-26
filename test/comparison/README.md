@@ -1,117 +1,93 @@
 # Rails Adapter Comparison Tests
 
-This directory contains automated comparison tests to verify that the `rodauth-rack` Rails adapter produces functionally equivalent output to the original `rodauth-rails` gem.
+This directory contains automated comparison tests that verify the rodauth-rack Rails adapter generates the same output as the original rodauth-rails gem.
+
+## Overview
+
+The comparison test creates two identical Rails applications:
+
+- **rodauth-rails-test**: Uses the published `rodauth-rails` gem (~> 1.15)
+- **rodauth-rack-test**: Uses the local `rodauth-rack` gem with Rails adapter
+
+It then runs all four generators on both apps and compares the output.
 
 ## Running Locally
 
-### Prerequisites
-
-- Ruby 3.2+ installed
-- Rails gem installed (`gem install rails`)
-- rodauth-rails gem installed (`gem install rodauth-rails`)
-
-### Run the comparison test
-
 ```bash
-# From the project root
+# Basic run
 ruby test/comparison/compare_rails_adapters.rb
 
-# With verbose output
+# Verbose output
 VERBOSE=1 ruby test/comparison/compare_rails_adapters.rb
 
-# Keep temporary files for inspection
+# Keep temp directories for debugging
 KEEP_TEMP=1 ruby test/comparison/compare_rails_adapters.rb
 ```
 
-## What It Tests
+## What Gets Tested
 
-The comparison test creates two identical Rails applications and compares outputs:
+### Generators
 
-1. **App A**: Uses `rodauth-rails` gem (~> 1.15)
-2. **App B**: Uses `rodauth-rack` Rails adapter (local path)
+1. `rails g rodauth:install` - Creates initializer, models, controllers
+2. `rails g rodauth:migration [features]` - Creates database migrations
+3. `rails g rodauth:views` - Creates view templates
+4. `rails g rodauth:mailer` - Creates mailer templates
 
-### Generators Tested
+### Comparisons
 
-- `rails g rodauth:install` - Initial setup
-- `rails g rodauth:migration` - Database migrations (base, verify_account, reset_password, remember, otp)
-- `rails g rodauth:views` - View templates
-- `rails g rodauth:mailer` - Mailer templates
-
-### Comparison Points
-
-1. **File structure** - Same files generated in same locations
-2. **File contents** - Identical content (after normalizing namespace differences)
-3. **Generator output** - Same console output from generators
-
-### Expected Differences
-
-The only acceptable differences are namespace-related:
-
-- `Rodauth::Rails` → `Rodauth::Rack::Rails`
-- `require "rodauth/rails"` → `require "rodauth/rack/rails"`
+- Generator output messages
+- Generated file structure
+- File contents (with namespace normalization)
 
 ## CI Integration
 
-### GitHub Actions Workflow
+The test runs automatically on:
 
-To add this as a CI check, create `.github/workflows/rails-adapter-comparison.yml`:
+- Push to `main` or `feature/*` branches
+- Pull requests that modify:
+  - `lib/generators/**`
+  - `lib/rodauth/rack/rails/**`
+  - `test/comparison/**`
 
-```yaml
-name: Rails Adapter Comparison
+### Matrix Testing
 
-on: [push, pull_request]
+- Ruby versions: 3.2, 3.3, 3.4
+- Rails versions: 7.1, 7.2, 8.0
 
-jobs:
-  compare:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        ruby-version: ["3.2", "3.3"]
-        rails-version: ["7.0", "7.1", "7.2"]
+## Expected Differences
 
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
+Some minor differences are acceptable and don't indicate bugs:
 
-      - name: Install dependencies
-        run: |
-          gem install rails -v "~> ${{ matrix.rails-version }}.0"
-          gem install rodauth-rails
+1. **Output formatting**: `gemfile` vs `create` in generator messages
+2. **Timestamps**: Migration filenames have different timestamps
+3. **Comments**: rodauth-rack may include additional helpful comments
+4. **Require statements**: rodauth-rack adds `require "rodauth/rack/rails"` to generated initializer
 
-      - name: Run comparison test
-        run: ruby test/comparison/compare_rails_adapters.rb
-        env:
-          VERBOSE: "1"
-```
+These differences are cosmetic and don't affect functionality.
 
-**Security Note**: This workflow only uses matrix variables (defined in the workflow) and hardcoded values. No user-controlled input is used.
+## Debugging Failures
 
-## Troubleshooting
+If the comparison test fails in CI:
 
-### Test Fails
-
-If the comparison test fails:
-
-1. **Keep temp files**: Run with `KEEP_TEMP=1` to inspect generated apps
-2. **Check differences**: Look at the failure output for specific mismatches
-3. **Verbose mode**: Use `VERBOSE=1` to see detailed output
+1. **Check the artifacts**: Failed runs upload the temp directories containing both test apps
+2. **Run locally**: Use `KEEP_TEMP=1` to inspect the generated apps
+3. **Check diffs**: Look at the specific differences reported in the test output
 
 ### Common Issues
 
-- **Missing Rails**: Install with `gem install rails`
-- **Missing rodauth-rails**: Install with `gem install rodauth-rails`
-- **Bundle install fails**: Check your Ruby version compatibility
+- **Missing feature modules**: Ensure all files in `lib/rodauth/rack/rails/feature/` are present
+- **Template paths**: Generators should point to correct template directories
+- **Namespace issues**: Check that `Rodauth::Rails` alias is properly set up
 
-## Development Workflow
+## Adding New Generators
 
-When modifying the Rails adapter:
+When adding a new generator:
 
-1. Make changes to `lib/rodauth/rack/rails/` or `lib/rodauth/rack/generators/rails/`
-2. Run comparison test: `ruby test/comparison/compare_rails_adapters.rb`
-3. Fix any discrepancies
-4. Commit changes
+1. Add it to the `GENERATORS` array in `compare_rails_adapters.rb`
+2. Ensure templates are in the correct location
+3. Update this README with the new generator
+4. Run the comparison test locally before pushing
 
-This ensures the adapter remains functionally equivalent to the original rodauth-rails gem.
+## Maintenance
+
+This comparison test ensures we maintain compatibility with rodauth-rails while building the rodauth-rack monorepo. As we add features to the Rails adapter, this test helps verify we don't break existing behavior.

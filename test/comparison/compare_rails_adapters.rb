@@ -214,7 +214,7 @@ class RailsAdapterComparison
       stdout, stderr, status = Open3.capture3(command)
       unless status.success?
         puts "  ERROR: Command failed: #{command}"
-        puts "  STDERR: #{stderr}" if stderr.present?
+        puts "  STDERR: #{stderr}" unless stderr.to_s.empty?
       end
       stdout + stderr
     end
