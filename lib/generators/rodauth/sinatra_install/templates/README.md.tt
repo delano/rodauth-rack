@@ -1,0 +1,194 @@
+# <%= app_name %> - Rodauth Authentication
+
+This Sinatra application has been configured with Rodauth for authentication.
+
+## Setup
+
+### 1. Install Dependencies
+
+Add these to your `Gemfile` and run `bundle install`:
+
+```ruby
+# Rodauth authentication
+gem 'rodauth-rack', '~> 1.0'
+gem 'sinatra', '~> 4.0'
+gem 'puma', '~> 6.0'
+gem 'tilt', '~> 2.4'
+<% if argon2? -%>
+gem 'argon2', '~> 2.3'
+<% else -%>
+gem 'bcrypt', '~> 3.1'
+<% end -%>
+<% if jwt? -%>
+gem 'jwt', '~> 2.9'
+<% end -%>
+gem 'sequel', '~> 5.85'
+gem 'dotenv', '~> 3.0'
+
+# Database adapter
+gem 'pg', '~> 1.5'  # PostgreSQL
+# gem 'mysql2', '~> 0.5'  # MySQL
+# gem 'sqlite3', '~> 2.0'  # SQLite
+```
+
+### 2. Configure Environment
+
+Copy the example environment file and update it:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and update:
+- `DATABASE_URL` - Your database connection string
+- Keep the generated secrets (they are unique for your app)
+- Optionally configure SMTP settings for email delivery
+
+### 3. Create Database
+
+Create your database:
+
+```bash
+# PostgreSQL
+createdb <%= table_prefix %>_development
+createdb <%= table_prefix %>_test
+
+# Or using your preferred method
+```
+
+### 4. Run Migrations
+
+Generate and run the Rodauth migrations:
+
+```bash
+# Generate migration
+rodauth generate migration <%= infer_migration_features.join(' ') %>
+
+# Run migration
+bundle exec sequel -m db/migrate $DATABASE_URL
+```
+
+### 5. Start the Server
+
+```bash
+bundle exec rackup -p 9292
+```
+
+Visit http://localhost:9292 to see your app!
+
+## File Structure
+
+```
+.
+├── config/
+│   └── database.rb          # Database configuration
+├── lib/
+│   └── rodauth_app.rb       # Rodauth middleware configuration
+├── config.ru                # Rack configuration
+├── .env                     # Environment variables (create from .env.example)
+└── .env.example             # Example environment variables
+```
+
+## Rodauth Routes
+
+The following authentication routes are available:
+
+<% unless api_only? -%>
+- `/login` - Login page
+- `/logout` - Logout
+- `/create-account` - Sign up page
+- `/verify-account` - Account verification
+- `/reset-password-request` - Request password reset
+- `/reset-password` - Reset password with token
+- `/change-password` - Change password (logged in)
+- `/change-login` - Change email/login
+- `/close-account` - Delete account
+<% end -%>
+<% if json? || jwt? -%>
+
+### JSON API Endpoints
+
+All routes also support JSON requests. Send requests with `Content-Type: application/json`:
+
+```bash
+# Login
+curl -X POST http://localhost:9292/login \\
+  -H "Content-Type: application/json" \\
+  -d '{"login":"user@example.com","password":"secret"}'
+
+# Create account
+curl -X POST http://localhost:9292/create-account \\
+  -H "Content-Type: application/json" \\
+  -d '{"login":"user@example.com","password":"secret","password-confirm":"secret"}'
+```
+<% end -%>
+<% if jwt? -%>
+
+### JWT Authentication
+
+JWT tokens are returned in the response body. Include them in subsequent requests:
+
+```bash
+# Request with JWT
+curl -X GET http://localhost:9292/dashboard \\
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+<% end -%>
+
+## Customization
+
+### Email Templates
+
+Rodauth includes default email templates. To customize them, see:
+https://rodauth.jeremyevans.net/rdoc/files/README_rdoc.html#label-Email+Templates
+
+### Views
+
+<% if api_only? -%>
+This app is configured for API-only mode (no HTML views).
+<% else -%>
+To customize the authentication views, create ERB templates in your views directory.
+See: https://rodauth.jeremyevans.net/rdoc/files/README_rdoc.html#label-Views
+<% end -%>
+
+### Configuration
+
+Edit `lib/rodauth_app.rb` to:
+- Enable/disable features
+- Customize redirect paths
+- Modify email settings
+- Add custom authentication logic
+
+## Security Notes
+
+1. **Never commit `.env` to version control** - It contains sensitive secrets
+2. **Use HTTPS in production** - Required for secure cookies and sessions
+3. **Review Rodauth security docs** - https://rodauth.jeremyevans.net/rdoc/files/README_rdoc.html#label-Security
+
+## Documentation
+
+- [Rodauth Documentation](https://rodauth.jeremyevans.net/)
+- [Rodauth Features](https://rodauth.jeremyevans.net/features.html)
+- [Sinatra Documentation](http://sinatrarb.com/)
+
+## Troubleshooting
+
+### Database Connection Error
+
+Make sure your `DATABASE_URL` in `.env` is correct and the database exists.
+
+### Missing Session Error
+
+<% if jwt? -%>
+JWT mode is enabled - sessions are not required.
+<% else -%>
+Make sure sessions are enabled in your Sinatra app:
+```ruby
+enable :sessions
+set :session_secret, ENV.fetch("SESSION_SECRET")
+```
+<% end -%>
+
+### Email Not Sending
+
+Configure SMTP settings in `.env` or use a service like SendGrid, Mailgun, etc.

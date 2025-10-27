@@ -1,0 +1,82 @@
+# frozen_string_literal: true
+
+require "roda"
+require "rodauth"
+require_relative "../config/database"
+
+# Rodauth middleware for <%= app_name %>
+# This Roda app handles all authentication logic and can be used as middleware
+# in your Sinatra application.
+class RodauthApp < Roda
+  # Enable Roda middleware plugin so we can use this as Rack middleware
+  plugin :middleware, forward_response_headers: true
+
+  # Enable CSRF protection
+  plugin :route_csrf
+
+  # Configure Rodauth plugin
+  plugin :rodauth do
+    # Enable authentication features
+    enable :login, :logout, :create_account, :verify_account,
+           :reset_password, :change_password, :close_account, :remember
+<% if json? || jwt? -%>
+
+    # Enable JSON support for API requests
+    enable :json
+<% end -%>
+<% if jwt? -%>
+
+    # Enable JWT support for stateless authentication
+    enable :jwt, :jwt_refresh
+    jwt_secret ENV.fetch("JWT_SECRET")
+<% end -%>
+
+    # Database connection
+    db DB
+
+    # Account table configuration
+    accounts_table :<%= pluralize(table_prefix) %>
+
+    # Security configuration
+    hmac_secret ENV.fetch("HMAC_SECRET")
+
+    # Password hashing
+<% if argon2? -%>
+    require "argon2"
+    password_hash_cost <%= RUBY_ENGINE == "jruby" ? "2" : "19" %>
+<% else -%>
+    require "bcrypt"
+<% end -%>
+
+    # Email configuration
+    email_from ENV.fetch("EMAIL_FROM", "noreply@example.com")
+    email_subject_prefix "[<%= app_name %>] "
+
+<% if api_only? -%>
+    # API-only configuration (no HTML views)
+    only_json? true
+    json_response_success_key :data
+    json_response_error_key :error
+    require_login_error_status 401
+<% end -%>
+<% if json? && !api_only? -%>
+
+    # JSON API configuration (hybrid mode - both JSON and HTML)
+    json_response_success_key :data
+    json_response_error_key :error
+<% end -%>
+  end
+
+  route do |r|
+    # Route Rodauth requests
+    r.rodauth
+
+<% unless jwt? -%>
+    # Auto-login remembered users
+    rodauth.load_memory
+
+<% end -%>
+    # Rodauth routes are handled above
+    # Your Sinatra app handles all other routes
+  end
+end

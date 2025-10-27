@@ -1,0 +1,33 @@
+# frozen_string_literal: true
+
+require "sequel"
+
+# Database configuration for <%= app_name %>
+# This file is loaded by the Rodauth app and your Sinatra application
+
+adapter = ENV.fetch("DATABASE_ADAPTER", "<%= sequel_adapter %>")
+
+database_url = ENV.fetch("DATABASE_URL") do
+  case ENV.fetch("RACK_ENV", "development")
+  when "production"
+    raise "DATABASE_URL environment variable required in production!"
+  when "test"
+    "#{adapter}://localhost/<%= table_prefix %>_test"
+  else
+    "#{adapter}://localhost/<%= table_prefix %>_development"
+  end
+end
+
+DB = Sequel.connect(database_url)
+
+# Enable extensions required by Rodauth
+DB.extension :date_arithmetic
+<% unless api_only? -%>
+DB.extension :pagination
+<% end -%>
+
+# Log queries in development
+DB.loggers << Logger.new($stdout) unless ENV["RACK_ENV"] == "production"
+
+# Freeze the database schema in production for better performance
+DB.freeze if ENV["RACK_ENV"] == "production"
