@@ -1,0 +1,8 @@
+<%= form_tag rodauth.email_auth_request_path, method: :post, id: "email-auth-request-form" do %>
+  <% if params[rodauth.login_param] && !rodauth.field_error(rodauth.login_param) %>
+    <%= hidden_field_tag rodauth.login_param, params[rodauth.login_param] %>
+  <% else %>
+    <%= email_field_tag rodauth.login_param, params[rodauth.login_param], placeholder: "Email" %>
+  <% end %>
+  <%= submit_tag "Send Login Link via Email" %>
+<% end %>

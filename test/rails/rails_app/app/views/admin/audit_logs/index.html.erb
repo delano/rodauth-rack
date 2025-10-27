@@ -1,0 +1,169 @@
+<h1>Audit Logs</h1>
+
+<div class="filters">
+  <%= form_with url: admin_audit_logs_path, method: :get, local: true do |f| %>
+    <div class="filter-group">
+      <%= f.label :account_id, "Account ID:" %>
+      <%= f.text_field :account_id, value: params[:account_id] %>
+    </div>
+
+    <div class="filter-group">
+      <%= f.label :start_date, "Start Date:" %>
+      <%= f.date_field :start_date, value: params[:start_date] %>
+    </div>
+
+    <div class="filter-group">
+      <%= f.label :end_date, "End Date:" %>
+      <%= f.date_field :end_date, value: params[:end_date] %>
+    </div>
+
+    <div class="filter-group">
+      <%= f.label :action_filter, "Action:" %>
+      <%= f.text_field :action_filter, value: params[:action_filter], placeholder: "login, logout, etc." %>
+    </div>
+
+    <div class="filter-group">
+      <%= f.label :ip_filter, "IP Address:" %>
+      <%= f.text_field :ip_filter, value: params[:ip_filter] %>
+    </div>
+
+    <div class="filter-group">
+      <%= f.label :sort_order, "Sort:" %>
+      <%= f.select :sort_order, [["Newest First", "desc"], ["Oldest First", "asc"]], selected: params[:sort_order] || "desc" %>
+    </div>
+
+    <%= f.submit "Filter" %>
+    <%= link_to "Clear Filters", admin_audit_logs_path %>
+  <% end %>
+</div>
+
+<% if @account %>
+  <p>Showing logs for account: <%= @account.email %> (ID: <%= @account.id %>)</p>
+<% end %>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Account</th>
+      <th>Timestamp</th>
+      <th>Action</th>
+      <th>IP Address</th>
+      <th>User Agent</th>
+      <th>Details</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @audit_logs.each do |log| %>
+      <tr>
+        <td><%= log.id %></td>
+        <td>
+          <% if log.account %>
+            <%= link_to log.account.email, admin_audit_logs_path(account_id: log.account_id) %>
+            <br>
+            <small>(ID: <%= log.account_id %>)</small>
+          <% else %>
+            <em>Account not found</em>
+          <% end %>
+        </td>
+        <td><%= log.formatted_time %></td>
+        <td><%= log.message %></td>
+        <td><%= log.ip_address || "N/A" %></td>
+        <td><%= truncate(log.user_agent, length: 50) || "N/A" %></td>
+        <td>
+          <% if log.metadata.present? %>
+            <details>
+              <summary>View Metadata</summary>
+              <pre><%= JSON.pretty_generate(log.metadata) %></pre>
+            </details>
+          <% else %>
+            <em>No metadata</em>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<% if @audit_logs.empty? %>
+  <p>No audit logs found matching the current filters.</p>
+<% end %>
+
+<div class="pagination">
+  <p>
+    Showing <%= @audit_logs.length %> of <%= @total_count %> total logs
+    (Page <%= @page %>)
+  </p>
+
+  <% if @page > 1 %>
+    <%= link_to "Previous Page", admin_audit_logs_path(params.merge(page: @page - 1)) %>
+  <% end %>
+
+  <% if @audit_logs.length >= @per_page %>
+    <%= link_to "Next Page", admin_audit_logs_path(params.merge(page: @page + 1)) %>
+  <% end %>
+</div>
+
+<style>
+  .filters {
+    background: #f5f5f5;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+  }
+
+  .filter-group {
+    display: inline-block;
+    margin-right: 15px;
+    margin-bottom: 10px;
+  }
+
+  .filter-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+
+  th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+
+  th {
+    background-color: #4CAF50;
+    color: white;
+  }
+
+  tr:hover {
+    background-color: #f5f5f5;
+  }
+
+  details {
+    cursor: pointer;
+  }
+
+  pre {
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+
+  .pagination {
+    margin-top: 20px;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 4px;
+  }
+
+  .pagination a {
+    margin-right: 10px;
+  }
+</style>

@@ -1,0 +1,16 @@
+<h1>Disable Two-Factor Authentication</h1>
+
+<p>Are you sure you want to disable two-factor authentication? This will make your account less secure.</p>
+
+<%= form_with url: otp_disable_path, method: :post, local: true do |form| %>
+  <% if two_factor_modifications_require_password? %>
+    <div class="form-group">
+      <%= label_tag password_param, "Current Password:" %>
+      <%= password_field_tag password_param, "", autocomplete: "current-password", class: "form-control" %>
+    </div>
+  <% end %>
+
+  <%= raw csrf_tag %>
+  <%= submit_tag "Disable TOTP Authentication", class: "btn btn-danger" %>
+  <%= link_to "Cancel", two_factor_manage_path, class: "btn btn-secondary" %>
+<% end %>
