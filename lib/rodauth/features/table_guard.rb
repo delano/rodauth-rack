@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 #
 # Place this file at: lib/rodauth/features/table_guard.rb
 #
@@ -21,7 +22,7 @@ module Rodauth
       :missing_tables,
       :all_table_methods,
       :list_all_required_tables,
-      :table_status
+      :table_status,
     )
 
     def post_configure
@@ -30,16 +31,15 @@ module Rodauth
     end
 
     def should_check_tables?
-      # Try to get the mode - if it's a symbol, we can check it
-      # If it's a Proc, we'll get an ArgumentError, which means it was configured
-      begin
+        # Try to get the mode - if it's a symbol, we can check it
+        # If it's a Proc, we'll get an ArgumentError, which means it was configured
+
         mode = table_guard_mode
-        mode != :silent && mode != nil && mode != :skip
-      rescue ArgumentError
+        mode != :silent && !mode.nil? && mode != :skip
+    rescue ArgumentError
         # table_guard_mode is a block (expects 1 arg), so it was configured
         # We should check tables
         true
-      end
     end
 
     def check_required_tables!
@@ -59,8 +59,8 @@ module Rodauth
           raise Rodauth::ConfigurationError, build_missing_tables_message(missing)
         else
           raise Rodauth::ConfigurationError,
-                "Invalid table_guard_mode: #{mode.inspect}. " \
-                "Expected :silent, :warn, :error, or a Proc."
+            "Invalid table_guard_mode: #{mode.inspect}. " \
+            'Expected :silent, :warn, :error, or a Proc.'
         end
       rescue ArgumentError
         # table_guard_mode is a block that expects an argument
@@ -72,7 +72,7 @@ module Rodauth
           raise Rodauth::ConfigurationError, build_missing_tables_message(missing)
         when String
           raise Rodauth::ConfigurationError, result
-        # :continue, nil, false means don't raise
+          # :continue, nil, false means don't raise
         end
       end
     end
@@ -87,7 +87,7 @@ module Rodauth
 
         result << {
           method: table_method,
-          table: table_name
+          table: table_name,
         }
       end
 
@@ -103,8 +103,8 @@ module Rodauth
       return true if table_guard_skip_tables.include?(table_name)
 
       db.table_exists?(table_name)
-    rescue => e
-      warn "TableGuard: Unable to check table existence: #{e.message}"
+    rescue StandardError => ex
+      warn "TableGuard: Unable to check table existence: #{ex.message}"
       true
     end
 
@@ -115,12 +115,12 @@ module Rodauth
         lines << "  - Table: #{info[:table]} (configured via #{info[:method]})"
       end
 
-      lines << "\n" + build_migration_hints(missing)
+      lines << ("\n" + build_migration_hints(missing))
       lines.join("\n")
     end
 
     def build_migration_hints(missing)
-      hints = ["Migration hints:"]
+      hints = ['Migration hints:']
 
       unique_tables = missing.map { |i| i[:table] }.uniq
 
@@ -130,7 +130,7 @@ module Rodauth
       end
 
       hints << "\nOr disable table checking:"
-      hints << "  table_guard_mode :silent"
+      hints << '  table_guard_mode :silent'
 
       hints << "\nOr skip specific tables:"
       hints << "  table_guard_skip_tables #{unique_tables.inspect}"
@@ -148,7 +148,7 @@ module Rodauth
         {
           method: method,
           table: table_name,
-          exists: table_exists?(table_name)
+          exists: table_exists?(table_name),
         }
       end
     end
