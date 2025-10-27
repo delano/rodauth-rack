@@ -1,0 +1,21 @@
+<div class="mx-auto max-w-md">
+  <div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Email Authentication Demo</h2>
+    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+      This page demonstrates the EmailAuth Vue component for passwordless authentication.
+    </p>
+  </div>
+
+  <!-- Vue component mount point -->
+  <div id="email-auth-app" data-email="<%= @initial_email %>"></div>
+
+  <div class="mt-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+    <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">How it works</h3>
+    <ul class="mt-2 list-inside list-disc text-sm text-blue-700 dark:text-blue-300">
+      <li>Enter your email address</li>
+      <li>Receive a secure sign-in link via email</li>
+      <li>Click the link to authenticate</li>
+      <li>No password required</li>
+    </ul>
+  </div>
+</div>
