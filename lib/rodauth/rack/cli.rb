@@ -6,8 +6,10 @@ module Rodauth
     # Usage: rodauth generate hanami:install
     class CLI
       GENERATORS = {
-        "hanami:install" => "generators/rodauth/hanami_install/hanami_install_generator",
-        "migration" => "generators/migration"
+        "hanami:install" => "../../generators/rodauth/hanami_install/hanami_install_generator",
+        "sinatra:install" => "../../generators/rodauth/sinatra_install/sinatra_install_generator",
+        "otto:install" => "../../generators/rodauth/otto_install/otto_install_generator",
+        "migration" => "../../generators/migration"
       }.freeze
 
       def self.run(args = ARGV)
@@ -156,6 +158,10 @@ module Rodauth
         case @generator_name
         when "hanami:install"
           Rodauth::Generators::HanamiInstallGenerator.new(@options).generate
+        when "sinatra:install"
+          Rodauth::Generators::SinatraInstallGenerator.new(@options).generate
+        when "otto:install"
+          Rodauth::Generators::OttoInstallGenerator.new(@options).generate
         when "migration"
           generate_migration
         end
@@ -194,9 +200,11 @@ module Rodauth
 
           Available Generators:
             hanami:install    Generate Rodauth configuration for Hanami 2.x apps
+            sinatra:install   Generate Rodauth configuration for Sinatra apps
+            otto:install      Generate Rodauth configuration for Otto apps
             migration         Generate database migration for Rodauth features
 
-          Options (for hanami:install):
+          Options (for install generators):
             --json           Configure JSON API support
             --jwt            Configure JWT authentication
             --argon2         Use Argon2 for password hashing (instead of bcrypt)
@@ -208,11 +216,14 @@ module Rodauth
             # Basic Hanami installation
             rr generate hanami:install
 
-            # API-only with JWT
-            rr generate hanami:install --jwt --api-only
+            # Sinatra with JSON API
+            rr generate sinatra:install --json
 
-            # JSON API with custom table
-            rr generate hanami:install --json --table=user
+            # Otto with JWT authentication
+            rr generate otto:install --jwt --api-only
+
+            # API-only with custom table
+            rr generate sinatra:install --jwt --api-only --table=user
 
             # With Argon2 password hashing
             rr generate hanami:install --argon2
