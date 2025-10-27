@@ -96,7 +96,7 @@ module Rodauth
       end
 
       def sequel_migration_wrapper(migration_content)
-        lines = migration_content.lines.map { |line| "    #{line.rstrip}" }.join("\n")
+        lines = indent_migration_content(migration_content)
         <<~MIGRATION
           Sequel.migration do
             change do
@@ -108,7 +108,7 @@ module Rodauth
 
       def activerecord_migration_wrapper(migration_content, timestamp)
         class_name = "CreateRodauth#{timestamp}"
-        lines = migration_content.lines.map { |line| "    #{line.rstrip}" }.join("\n")
+        lines = indent_migration_content(migration_content)
         <<~MIGRATION
           class #{class_name} < ActiveRecord::Migration[7.0]
             def change
@@ -116,6 +116,12 @@ module Rodauth
             end
           end
         MIGRATION
+      end
+
+      # Indents migration content by 4 spaces per line
+      def indent_migration_content(content)
+        content.lines.map { |line| "    #{line.rstrip}" }.join("
+")
       end
 
       def detect_orm

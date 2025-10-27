@@ -47,8 +47,8 @@ class RodauthMain < Rodauth::Rack::Hanami::Auth
     # The email address from which emails will be sent
     email_from "noreply@example.com"
 
-    # The subject prefix for emails
-    email_subject_prefix "[<%= defined?(Hanami) && Hanami.app ? Hanami.app.config.app_name : 'App' %>] "
+    # The subject prefix for emails (customize this for your app)
+    email_subject_prefix "[App] "
 
     # ==> Password hashing
 <% if argon2? -%>

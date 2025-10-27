@@ -64,7 +64,6 @@ module Rodauth
           def find_hanami_view(view_path)
             # Try to find the view class from Hanami app
             # This needs to be customizable per-app
-            inflector = Dry::Inflector.new
             view_name = inflector.camelize(view_path)
 
             # Try to constantize Rodauth::Views::ViewName
@@ -73,6 +72,11 @@ module Rodauth
             # Log error for debugging if logger available
             logger.debug("Hanami view not found: #{view_name}") if respond_to?(:logger)
             nil
+          end
+
+          # Memoized inflector instance (reused across method calls)
+          def inflector
+            @inflector ||= Dry::Inflector.new
           end
 
           # Safe constantize that returns nil if constant not found

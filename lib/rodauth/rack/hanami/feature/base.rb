@@ -46,8 +46,9 @@ module Rodauth
               entity_name = inflector.camelize(inflector.singularize(table.to_s))
               begin
                 return ::Hanami.app["persistence.rom"].relations[table.to_sym].mapper.entity
-              rescue
-                # Fall through to Sequel
+              rescue => e
+                # Fall through to Sequel if ROM lookup fails
+                logger.debug("ROM lookup failed for table '#{table}': #{e.class}: #{e.message}") if respond_to?(:logger)
               end
             end
 
