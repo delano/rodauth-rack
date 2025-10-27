@@ -36,6 +36,9 @@ repos:
         args: [--fix]
 
   # Commit message checks
+  #
+  # Prefix must be one of: feat, fix, docs, style, refactor, perf, test, build, ci, chore
+  #
   - repo: https://github.com/jorisroovers/gitlint
     rev: v0.19.1
     hooks:
