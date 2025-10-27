@@ -1,16 +1,22 @@
-when defining a new Rodauth feature, you have these configuration options:
+# Rodauth Feature API Reference
+
+This document is a reference for both **feature developers** creating new Rodauth authentication features and **application developers** configuring Rodauth in their projects. It describes the DSL methods available when defining features using `Feature.define(:feature_name)` and how those methods create configuration options for application use.
 
 ## About this Document
 
-This document outlines the configuration options available when defining a new Rodauth feature. Each section describes a specific configuration method, its purpose, and provides code examples from existing features.
+Each section describes a configuration method with:
 
-We distinguish between:
+- Its purpose and behavior for feature developers
+- Code examples from existing Rodauth features
+- How it creates configuration options for application developers
+
+We distinguish between three audiences:
 
 - **Feature developers** - Writing Rodauth features
-- **Application developers** - Using Rodauth in their applications
-- **End users** - People logging into the application
+- **Application developers** - Configuring Rodauth in their applications
+- **End users** - People using the authentication system
 
-Route Configuration
+## Route Configuration
 
 ### `route(name, default, &block)` - Define a route for the feature
 
@@ -69,7 +75,7 @@ module Rodauth
 end
 ```
 
-1. **With `auth_methods :logout`**: Creates a configuration method allowing **developers** to override:
+**With `auth_methods :logout`**: Creates a configuration method allowing **developers** to override:
 
 ```ruby
 rodauth do
@@ -345,20 +351,43 @@ A centralized notification point that fires whenever ANY hook runs (before/after
 
 ## Dependencies
 
-### `depends(*features)`- Declare feature dependencies
+### `depends(*features)` - Declare feature dependencies
+
+For **feature developers**: Ensures dependent features are loaded before this feature. Dependencies are automatically enabled when the feature is enabled.
 
 ```ruby
+# From lib/rodauth/features/otp_modify_email.rb
 depends :otp, :email_base
 ```
 
-### `internal_request_method(name)`- Mark method for internal requests
+When an **application developer** enables this feature, in this case `:otp_modify_email`, the `:otp` and `:email_base` are automatically enabled first.
+
+### internal_request_method(name)` - Expose method for internal requests
+
+For **feature developers**: Registers a method to be exposed for internal/programmatic use (without HTTP requests). Defaults to feature name if `name` not provided.
 
 ```ruby
-internal_request_method
+# From lib/rodauth/features/login.rb
+internal_request_method  # Exposes :login (uses feature_name default)
+internal_request_method :valid_login_and_password?  # Exposes this specific method
 ```
 
-### `loaded_templates(array)`- Declare required templates
+**Application developers** can then call these methods directly:
 
 ```ruby
-loaded_templates %w'logout'
+app.rodauth.login(login: 'user@example.com', password: 'secret')
+app.rodauth.valid_login_and_password?(login: 'user@example.com', password: 'secret')
 ```
+
+**Without this declaration**: Methods only work via HTTP requests, no programmatic API is available.
+
+### loaded_templates(array)` - Declare required templates
+
+For **feature developers**: Lists template files this feature uses. Used for template precompilation and validation.
+
+```ruby
+# From lib/rodauth/features/logout.rb
+loaded_templates ['logout']
+```
+
+No direct configuration needed by **application developers** - templates are automatically loaded and can be overridden via the standard template mechanism.
