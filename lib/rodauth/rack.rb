@@ -7,6 +7,9 @@ require_relative "rack/adapter/base"
 require_relative "rack/middleware"
 require_relative "rack/generators/migration"
 
+# Load external Rodauth features
+require_relative "../rodauth/features/table_guard"
+
 module Rodauth
   # Rack integration for Rodauth authentication framework
   module Rack
