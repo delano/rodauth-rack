@@ -10,18 +10,21 @@ We distinguish between:
 - **Application developers** - Using Rodauth in their applications
 - **End users** - People logging into the application
 
-## Route Configuration
+Route Configuration
 
 ### `route(name, default, &block)` - Define a route for the feature
 
-- Creates `#{name}_route` method (defaults to feature name with underscores→hyphens)
-- Auto-generates `#{name}_path` and `#{name}_url` helper methods
-- Creates `handle_#{name}` method with CSRF protection and around/before hooks
+Creates routing infrastructure for a feature:
+
+- `#{name}_route` - Route path (defaults to feature name with underscores→hyphens)
+- `#{name}_path` and `#{name}_url` - Helper methods for generating URLs
+- `handle_#{name}` - Route handler with CSRF protection
+- `before_#{name}_route` - Lifecycle hook (runs when entering the route)
 
 ```ruby
 # From lib/rodauth/features/logout.rb
 route do |r|
-  before_logout_route
+  before_logout_route  # Auto-generated hook
 
   r.get do
     logout_view
@@ -29,9 +32,9 @@ route do |r|
 
   r.post do
     transaction do
-      before_logout
+      before_logout  # Created by before macro
       logout
-      after_logout
+      after_logout   # Created by after macro
     end
     logout_response
   end
@@ -66,7 +69,7 @@ module Rodauth
 end
 ```
 
-**With `auth_methods :logout`**: Creates a configuration method allowing **developers** to override:
+1. **With `auth_methods :logout`**: Creates a configuration method allowing **developers** to override:
 
 ```ruby
 rodauth do
@@ -286,51 +289,59 @@ end
 
 ## Lifecycle Hooks
 
-### `before(name)` - Define before hook for feature route/action
+### before(name)` / `after(name)` - Define lifecycle hook for feature action
 
-For **feature developers**: Creates `before_#{name}` and `_before_#{name}` hooks that execute before the feature's main action. Registers as overridable via `auth_private_methods`.
+For **feature developers**: Creates two methods:
+
+- `before_#{name}` - Wrapper that calls `_before_#{name}`, then notifies other features via `hook_action`
+- `_before_#{name}` - Internal implementation (empty by default)
+
+e.g. `before_logout` → calls → `_before_logout` → then calls `hook_action(:before, :logout)
+
+The feature developer must explicitly call `before_#{name}` in the route handler.
+
+**Distinction**: `before_#{name}` wraps the core action, while `before_#{name}_route` (auto-created by `route` macro) runs when entering the HTTP route.
 
 ```ruby
-# In feature definition (e.g., logout.rb)
+# From lib/rodauth/features/logout.rb
 Feature.define(:logout, :Logout) do
-  before  # Creates before_logout hook
-  # ...
+  before  # Creates before_logout and _before_logout
+
+  route do |r|
+    r.post do
+      transaction do
+        before_logout  # Calls _before_logout + hook_action
+        logout
+        after_logout
+      end
+    end
+  end
 end
 ```
 
-**Application developers** can add custom logic:
+**Application developers** configure via the public method name (which redefines the internal `_` version):
 
 ```ruby
 rodauth do
-  before_logout do
+  before_logout do  # Redefines _before_logout internally
     audit_log("User #{account_id} logging out")
   end
 end
 ```
 
-**End users** never interact with hooks directly - they experience the effects (e.g., audit logging happens transparently when they log out).
+### Before vs After
 
-### `after(name)` - Define after hook for feature
+The only differences are:
 
-For **feature developers**: Creates `after_#{name}` and `_after_#{name}` hooks that execute after the feature's main action.
+1. **Name** - `before_#{name}` vs `after_#{name}`
+2. **Timing** - Where the feature developer chooses to call them in the flow
+3. **Hook type** - Passes `:before` or `:after` to `hook_action(hook_type, name)`
 
-```ruby
-# In feature definition (e.g., logout.rb)
-Feature.define(:logout, :Logout) do
-  after  # Creates after_logout hook
-end
-```
+So semantically they're distinct, but mechanically identical. The "before" vs "after" behavior is entirely determined by where the feature developer places the method calls in the route handler.
 
-**Application developers** can add custom logic:
+### `hook_action(hook_type, action)`
 
-```ruby
-rodauth do
-  after_logout do
-    clear_user_cache
-    notify_admin_of_logout
-  end
-end
-```
+A centralized notification point that fires whenever ANY hook runs (before/after for any action). Does nothing by default, but features like `audit_logging` use it to add behavior that applies to all hooks (e.g., logging every authentication action).
 
 ## Dependencies
 
