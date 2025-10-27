@@ -1,0 +1,28 @@
+# frozen_string_literal: true
+
+Hanami.app.register_provider :rodauth do
+  prepare do
+    require "rodauth/rack/hanami"
+  end
+
+  start do
+    require "rodauth_app"
+
+    # Register Rodauth middleware
+    target.app.config.middleware.use(
+      Rodauth::Rack::Hanami::Middleware
+    )
+
+    # Make Rodauth available in the container
+    register "rodauth" do
+      Rodauth::Rack::Hanami
+    end
+
+    # Register each Rodauth configuration by name
+    Rodauth::Rack::Hanami.app.opts[:rodauths]&.each do |name, _|
+      register ["rodauth", name].compact.join(".") do
+        Rodauth::Rack::Hanami.rodauth(name)
+      end
+    end
+  end
+end

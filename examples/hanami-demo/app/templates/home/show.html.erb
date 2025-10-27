@@ -1,0 +1,50 @@
+<h2>Welcome to the Hanami + Rodauth Demo</h2>
+
+<% if logged_in %>
+  <div class="flash notice">
+    <p>You are logged in!</p>
+  </div>
+
+  <p>
+    Visit your <a href="/dashboard">Dashboard</a> to see a protected page.
+  </p>
+
+  <p>
+    <a href="/logout" class="button">Logout</a>
+  </p>
+<% else %>
+  <p>
+    This is a minimal Hanami 2.x application demonstrating Rodauth integration
+    for authentication.
+  </p>
+
+  <h3>Getting Started</h3>
+  <ol>
+    <li><a href="/create-account">Create an account</a></li>
+    <li>Check the console for the verification link (email sending not configured)</li>
+    <li><a href="/login">Login</a> to your account</li>
+    <li>Visit the <a href="/dashboard">Dashboard</a> (requires authentication)</li>
+  </ol>
+
+  <h3>Features Enabled</h3>
+  <ul>
+    <li>Account creation and verification</li>
+    <li>Login and logout</li>
+    <li>Remember me (persistent sessions)</li>
+    <li>Password reset</li>
+    <li>Change password and email</li>
+    <li>Close account</li>
+  </ul>
+
+  <p>
+    <a href="/create-account" class="button">Create Account</a>
+    <a href="/login" class="button">Login</a>
+  </p>
+<% end %>
+
+<h3>About This Demo</h3>
+<p>
+  This demo shows how to integrate Rodauth authentication into a Hanami 2.x
+  application using the rodauth-rack adapter. All authentication UI is provided
+  by Rodauth's built-in templates.
+</p>
