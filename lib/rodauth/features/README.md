@@ -182,26 +182,30 @@ rodauth do
 end
 ```
 
-## View Configuration
-
-### `view(page, title, name)`- Define a view endpoint
-
-- Creates `#{name}_view` method
-- Auto-generates translatable `#{name}_page_title`
-
-```ruby
-view 'change-password', 'Change Password'
-```
-
 ## Email Configuration
 
-### `email(type, subject, opts)`- Define email functionality
+### `email(type, subject, opts)` - Define email functionality
 
-- Creates subject, body, create, and send methods
-- `opts[:translatable]` enables translation support
+For **feature developers**: Creates a complete email workflow by generating four methods:
+
+- `#{type}_email_subject` - Translatable subject line
+- `#{type}_email_body` - Email body from template (translatable if `opts[:translatable]` is true)
+- `create_#{type}_email` - Creates Mail object with subject + body
+- `send_#{type}_email` - Sends the email via `send_email`
 
 ```ruby
+# From lib/rodauth/features/change_password_notify.rb
 email :password_changed, 'Password Changed', :translatable=>true
+```
+
+**Application developers** can override any part:
+
+```ruby
+rodauth do
+  password_changed_email_subject { "Your password was updated" }
+  password_changed_email_body { custom_template_rendering }
+  send_password_changed_email { custom_email_delivery }
+end
 ```
 
 ## Session & Flash Configuration
@@ -216,6 +220,17 @@ session_key :email_auth_session_key, :email_auth_key
 
 ```ruby
 flash_key :flash_error_key, :error
+```
+
+## View Configuration
+
+### `view(page, title, name)`- Define a view endpoint
+
+- Creates `#{name}_view` method
+- Auto-generates translatable `#{name}_page_title`
+
+```ruby
+view 'change-password', 'Change Password'
 ```
 
 ## UI Elements
@@ -243,6 +258,100 @@ button 'Logout'
 ```ruby
 additional_form_tags
 ```
+
+## JSON API Configuration
+
+For **application developers** configuring JSON API support, Rodauth provides three configuration patterns with distinct behaviors:
+
+### `plugin :rodauth, json: :only` - JSON-only mode
+
+**What it does:**
+
+- Sets `only_json?` to return true by default
+- Disables HTML rendering plugins (render, flash, CSRF, h)
+- Enables Roda's JSON plugin for response handling
+- All HTTP responses return JSON (no HTML views)
+- Email rendering and sending continues to work normally
+
+**Application developer usage:**
+
+```ruby
+class App < Roda
+  plugin :rodauth, json: :only do
+    enable :login, :logout
+  end
+
+  route do |r|
+    r.rodauth  # All routes return JSON
+  end
+end
+```
+
+### `plugin :rodauth` + `enable :json` - Hybrid mode (default)
+
+**What it does:**
+
+- Enables both HTML and JSON responses
+- HTTP responses determined by request Content-Type header
+- `use_json?` returns true when `json_request?` detects JSON content type
+- HTML rendering plugins remain active
+- Supports both browser and API clients
+
+**Application developer usage:**
+
+```ruby
+class App < Roda
+  plugin :rodauth do
+    enable :login, :logout, :json
+  end
+
+  route do |r|
+    r.rodauth  # Returns HTML or JSON based on Content-Type
+  end
+end
+```
+
+### `only_json? true` - Force JSON mode in configuration
+
+**What it does:**
+
+- Overrides `only_json?` method to always return true
+- Forces JSON responses even when `json: :only` not set at plugin level
+- Typically used for testing or when HTML plugins already loaded
+
+**Application developer usage:**
+
+```ruby
+class App < Roda
+  plugin :rodauth, json: true do
+    enable :login, :logout, :json
+    only_json? true  # Force JSON-only within this configuration
+  end
+end
+```
+
+### For Feature Developers
+
+The `:json` feature modifies behavior based on `use_json?`:
+
+```ruby
+def use_json?
+  json_request? || only_json?
+end
+
+def view(page, title)
+  return super unless use_json?
+  return_json_response  # Skip HTML rendering
+end
+```
+
+Email methods use `render()` directly, bypassing the JSON feature's `view()` override.
+
+### For Application Developers
+
+- **JSON-only mode**: API-only applications (mobile apps, SPAs)
+- **Hybrid mode**: Same endpoints serve both browser users and API clients
+- **Email behavior**: Unchanged across all modes - emails always rendered and sent
 
 ## Value Methods
 
