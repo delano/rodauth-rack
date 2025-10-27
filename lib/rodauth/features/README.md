@@ -237,36 +237,99 @@ additional_form_tags
 
 ## Value Methods
 
-### `auth_value_method(meth, value)`- Simple configuration value
+### `auth_value_method(meth, value)` - Configuration value with default
+
+Convenience macro that defines a method returning a default value and registers it via `auth_value_methods`.
 
 ```ruby
+# From lib/rodauth/features/change_password.rb
 auth_value_method :new_password_param, 'new-password'
+# Equivalent to:
+#   def new_password_param; 'new-password'; end
+#   auth_value_methods :new_password_param
 ```
 
-### `translatable_method(meth, value)`- Translatable configuration value
+Application developers can override with a **value or block**:
 
 ```ruby
+rodauth do
+  new_password_param 'password'           # static value
+  new_password_param { ... }              # computed at runtime
+end
+```
+
+### `translatable_method(meth, value)` - Translatable configuration value
+
+Like `auth_value_method` but wraps the value with `translate()` for i18n support. Used for enduser-facing text.
+
+```ruby
+# From lib/rodauth/features/change_password.rb
 translatable_method :new_password_label, 'New Password'
 ```
 
-### `auth_cached_method(meth, iv)`- Cached instance variable method
+### `auth_cached_method(meth, iv)` - Cached computation method
+
+Creates a private method that computes a value once and caches it in an instance variable. Application developers override `_#{meth}` to customize computation.
 
 ```ruby
-auth_cached_method :otp_key
+# From lib/rodauth/features/otp.rb
+auth_cached_method :otp_key  # Caches result of _otp_key in @otp_key
+```
+
+Application developers override the computation:
+
+```ruby
+rodauth do
+  otp_key { custom_otp_generation_logic }
+end
 ```
 
 ## Lifecycle Hooks
 
-### `before(name)`- Before hook for route/action
+### `before(name)` - Define before hook for feature route/action
+
+For **feature developers**: Creates `before_#{name}` and `_before_#{name}` hooks that execute before the feature's main action. Registers as overridable via `auth_private_methods`.
 
 ```ruby
-before
+# In feature definition (e.g., logout.rb)
+Feature.define(:logout, :Logout) do
+  before  # Creates before_logout hook
+  # ...
+end
 ```
 
-### `after(name)`- After hook for route/action
+**Application developers** can add custom logic:
 
 ```ruby
-after
+rodauth do
+  before_logout do
+    audit_log("User #{account_id} logging out")
+  end
+end
+```
+
+**End users** never interact with hooks directly - they experience the effects (e.g., audit logging happens transparently when they log out).
+
+### `after(name)` - Define after hook for feature
+
+For **feature developers**: Creates `after_#{name}` and `_after_#{name}` hooks that execute after the feature's main action.
+
+```ruby
+# In feature definition (e.g., logout.rb)
+Feature.define(:logout, :Logout) do
+  after  # Creates after_logout hook
+end
+```
+
+**Application developers** can add custom logic:
+
+```ruby
+rodauth do
+  after_logout do
+    clear_user_cache
+    notify_admin_of_logout
+  end
+end
 ```
 
 ## Dependencies
