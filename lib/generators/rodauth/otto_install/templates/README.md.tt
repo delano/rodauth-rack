@@ -1,0 +1,294 @@
+# <%= app_name %> - Rodauth Authentication with Otto
+
+This Otto application has been configured with Rodauth for authentication.
+
+## Setup
+
+### 1. Install Dependencies
+
+Add these to your `Gemfile` and run `bundle install`:
+
+```ruby
+# Rodauth authentication
+gem 'rodauth-rack', '~> 1.0'
+gem 'otto', '~> 2.0'
+gem 'puma', '~> 6.0'
+gem 'tilt', '~> 2.4'
+<% if argon2? -%>
+gem 'argon2', '~> 2.3'
+<% else -%>
+gem 'bcrypt', '~> 3.1'
+<% end -%>
+<% if jwt? -%>
+gem 'jwt', '~> 2.9'
+<% end -%>
+gem 'sequel', '~> 5.85'
+gem 'dotenv', '~> 3.0'
+
+# Database adapter
+gem 'pg', '~> 1.5'  # PostgreSQL
+# gem 'mysql2', '~> 0.5'  # MySQL
+# gem 'sqlite3', '~> 2.0'  # SQLite
+```
+
+### 2. Configure Environment
+
+Copy the example environment file and update it:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and update:
+- `DATABASE_URL` - Your database connection string
+- Keep the generated secrets (they are unique for your app)
+- Optionally configure SMTP settings for email delivery
+
+### 3. Create Database
+
+Create your database:
+
+```bash
+# PostgreSQL
+createdb <%= table_prefix %>_development
+createdb <%= table_prefix %>_test
+
+# Or using your preferred method
+```
+
+### 4. Run Migrations
+
+Generate and run the Rodauth migrations:
+
+```bash
+# Generate migration
+rodauth generate migration <%= infer_migration_features.join(' ') %>
+
+# Run migration
+bundle exec sequel -m db/migrate $DATABASE_URL
+```
+
+### 5. Start the Server
+
+```bash
+bundle exec rackup -p 7143
+```
+
+Visit http://localhost:7143 to see your app!
+
+## File Structure
+
+```
+.
+├── config/
+│   └── database.rb          # Database configuration
+├── lib/
+│   └── rodauth_app.rb       # Rodauth middleware configuration
+├── config.ru                # Rack configuration (Otto + Rodauth)
+├── <%= routes_file %>       # Otto routes (plain text format)
+├── .env                     # Environment variables (create from .env.example)
+└── .env.example             # Example environment variables
+```
+
+## Otto + Rodauth Integration
+
+### How It Works
+
+1. **Rodauth Middleware** - Handles all authentication routes (login, logout, etc.)
+2. **Otto Application** - Handles your application routes defined in `<%= routes_file %>`
+3. **Request Flow** - Rodauth processes auth requests first, then Otto handles the rest
+
+### Otto Routes with Authentication
+
+Create your routes file (`<%= routes_file %>`):
+
+```
+# Public routes
+GET   /               home
+GET   /about          about
+
+# Protected routes (require authentication)
+GET   /dashboard      dashboard
+GET   /profile        profile
+POST  /api/data       api_data
+```
+
+In your Otto handler file:
+
+```ruby
+require 'otto'
+
+class MyOttoApp < Otto
+  # Public route
+  def home
+    res.html '<h1>Welcome</h1>'
+  end
+
+  # Protected route
+  def dashboard
+    # Redirect to login if not authenticated
+    unless rodauth.logged_in?
+      res.redirect '/login'
+      return
+    end
+
+    # Get current user
+    user_id = rodauth.session_value
+    account = DB[:accounts].where(id: user_id).first
+
+    res.html "<h1>Dashboard for #{account[:email]}</h1>"
+  end
+<% if jwt? -%>
+
+  # API route with JWT authentication
+  def api_data
+    # Extract JWT token from Authorization header
+    token = req.env['HTTP_AUTHORIZATION']&.split(' ')&.last
+
+    unless token
+      res.status = 401
+      res.json error: 'No token provided'
+      return
+    end
+
+    # Verify JWT token
+    payload = rodauth.jwt_decode(token) rescue nil
+
+    unless payload
+      res.status = 401
+      res.json error: 'Invalid token'
+      return
+    end
+
+    # Return protected data
+    res.json data: 'Protected API response', user_id: payload['sub']
+  end
+<% end -%>
+end
+```
+
+### Otto Security Features
+
+Otto has built-in security features that work alongside Rodauth:
+
+1. **CSRF Protection** - Otto's `enable_csrf_protection!` works with Otto routes
+2. **Request Validation** - `enable_request_validation!` ensures HTTP methods match routes
+3. **Rate Limiting** - Optional rate limiting for Otto routes
+
+These are configured in `config.ru`.
+
+## Rodauth Routes
+
+The following authentication routes are handled by Rodauth:
+
+<% unless api_only? -%>
+- `/login` - Login page
+- `/logout` - Logout
+- `/create-account` - Sign up page
+- `/verify-account` - Account verification
+- `/reset-password-request` - Request password reset
+- `/reset-password` - Reset password with token
+- `/change-password` - Change password (logged in)
+- `/change-login` - Change email/login
+- `/close-account` - Delete account
+<% end -%>
+<% if json? || jwt? -%>
+
+### JSON API Endpoints
+
+All Rodauth routes support JSON requests. Send with `Content-Type: application/json`:
+
+```bash
+# Login
+curl -X POST http://localhost:7143/login \\
+  -H "Content-Type: application/json" \\
+  -d '{"login":"user@example.com","password":"secret"}'
+
+# Create account
+curl -X POST http://localhost:7143/create-account \\
+  -H "Content-Type: application/json" \\
+  -d '{"login":"user@example.com","password":"secret","password-confirm":"secret"}'
+```
+<% end -%>
+<% if jwt? -%>
+
+### JWT Authentication
+
+JWT tokens are returned in the response body. Include them in subsequent requests:
+
+```bash
+# Request with JWT
+curl -X GET http://localhost:7143/api/data \\
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+<% end -%>
+
+## Customization
+
+### Email Templates
+
+Rodauth includes default email templates. To customize them, see:
+https://rodauth.jeremyevans.net/rdoc/files/README_rdoc.html#label-Email+Templates
+
+### Otto Routes
+
+Define your routes in `<%= routes_file %>` using Otto's plain-text format:
+
+```
+METHOD  /path       handler_name
+```
+
+See [Otto documentation](https://github.com/delano/otto) for more details.
+
+### Rodauth Configuration
+
+Edit `lib/rodauth_app.rb` to:
+- Enable/disable features
+- Customize redirect paths
+- Modify email settings
+- Add custom authentication logic
+
+## Security Notes
+
+1. **Never commit `.env` to version control** - It contains sensitive secrets
+2. **Use HTTPS in production** - Required for secure cookies and sessions
+3. **Otto + Rodauth CSRF** - Both have CSRF protection; they work together
+4. **Review security docs**:
+   - [Rodauth Security](https://rodauth.jeremyevans.net/rdoc/files/README_rdoc.html#label-Security)
+   - [Otto Security](https://github.com/delano/otto#security)
+
+## Documentation
+
+- [Rodauth Documentation](https://rodauth.jeremyevans.net/)
+- [Otto Documentation](https://github.com/delano/otto)
+- [Rodauth Features](https://rodauth.jeremyevans.net/features.html)
+
+## Troubleshooting
+
+### Database Connection Error
+
+Make sure your `DATABASE_URL` in `.env` is correct and the database exists.
+
+### Otto CSRF Conflicts
+
+Otto and Rodauth both have CSRF protection:
+- Rodauth CSRF protects auth routes (automatic)
+- Otto CSRF protects your app routes (enable in config.ru)
+
+They work independently and don't conflict.
+
+### Session Issues
+
+<% if jwt? -%>
+JWT mode is enabled - sessions are not required.
+<% else -%>
+Otto handles sessions automatically. Make sure Rodauth middleware is loaded before Otto in `config.ru`.
+<% end -%>
+
+### Email Not Sending
+
+Configure SMTP settings in `.env` or use a service like SendGrid, Mailgun, etc.
+
+## Real-World Example
+
+For a production example of Otto + Rodauth, see [OneTimeSecret](https://github.com/onetimesecret/onetimesecret).

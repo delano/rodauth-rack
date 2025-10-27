@@ -1,0 +1,140 @@
+<h2>Two-Factor Authentication (OTP/MFA)</h2>
+
+<div class="otp-status">
+  <% if has_otp %>
+    <div class="flash notice">
+      <p><strong>Two-Factor Authentication is enabled</strong></p>
+    </div>
+  <% else %>
+    <div class="flash">
+      <p><strong>Two-Factor Authentication is not enabled</strong></p>
+    </div>
+  <% end %>
+</div>
+
+<h3>What is Two-Factor Authentication?</h3>
+<p>
+  Two-factor authentication (2FA) adds an extra layer of security to your account. After entering your password,
+  you'll need to provide a time-based one-time password (TOTP) from an authenticator app like Google Authenticator,
+  Authy, or 1Password.
+</p>
+
+<h3>How It Works</h3>
+<ol>
+  <li><strong>Setup</strong> - Generate a secret key and scan the QR code with your authenticator app</li>
+  <li><strong>Verify</strong> - Enter a code from your app to confirm setup</li>
+  <li><strong>Backup Codes</strong> - Save your recovery codes in a safe place</li>
+  <li><strong>Login</strong> - After entering your password, you'll be prompted for a 6-digit code</li>
+</ol>
+
+<h3>Current Status</h3>
+<ul>
+  <li>OTP Enabled: <strong><%= has_otp ? "Yes" : "No" %></strong></li>
+  <li>Recovery Codes: <strong><%= recovery_codes_count %> available</strong></li>
+</ul>
+
+<h3>Actions</h3>
+<div class="otp-actions">
+  <% if has_otp %>
+    <p>
+      <a href="/otp-auth" class="button">View OTP Status</a>
+      <a href="/otp-disable" class="button">Disable Two-Factor Auth</a>
+      <a href="/recovery-codes" class="button">View Recovery Codes</a>
+    </p>
+  <% else %>
+    <p>
+      <a href="/otp-setup" class="button">Setup Two-Factor Authentication</a>
+    </p>
+  <% end %>
+</div>
+
+<h3>Important Security Notes</h3>
+<div class="security-notes">
+  <ul>
+    <li><strong>Save your recovery codes</strong> - If you lose access to your authenticator app, these codes are the only way to regain access to your account</li>
+    <li><strong>Keep your secret secure</strong> - Never share your TOTP secret or QR code with anyone</li>
+    <li><strong>Use a trusted authenticator</strong> - We recommend Google Authenticator, Authy, 1Password, or similar TOTP-compatible apps</li>
+    <li><strong>Each code is single-use</strong> - Recovery codes can only be used once</li>
+  </ul>
+</div>
+
+<h3>Example Flow</h3>
+<p>Here's what happens when you set up OTP:</p>
+
+<div class="flow-example">
+  <pre>
+1. Click "Setup Two-Factor Authentication"
+2. You'll see a QR code and a secret key
+3. Scan the QR code with your authenticator app
+   (or manually enter the secret key)
+4. Your app will start generating 6-digit codes
+5. Enter one of these codes to verify setup
+6. Save your recovery codes in a secure location
+7. From now on, you'll need both your password
+   and a code from your app to log in
+  </pre>
+</div>
+
+<h3>JSON API Endpoints</h3>
+<p>For SPA/mobile applications, these endpoints are available:</p>
+<ul>
+  <li><code>POST /otp-setup</code> - Initialize OTP setup, returns provisioning URI and QR code data</li>
+  <li><code>POST /otp-auth</code> - Verify OTP code during login</li>
+  <li><code>POST /otp-disable</code> - Disable OTP for account</li>
+  <li><code>GET /recovery-codes</code> - View available recovery codes</li>
+  <li><code>POST /recovery-auth</code> - Authenticate using a recovery code</li>
+</ul>
+
+<p>
+  <a href="/dashboard" class="button">Back to Dashboard</a>
+  <a href="/security">View Security & Audit Log</a>
+</p>
+
+<style>
+  .otp-status {
+    margin-bottom: 20px;
+  }
+
+  .otp-actions {
+    background: #f0f8ff;
+    padding: 20px;
+    border-radius: 4px;
+    margin: 20px 0;
+  }
+
+  .security-notes {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    padding: 15px;
+    border-radius: 4px;
+    margin: 20px 0;
+  }
+
+  .security-notes ul {
+    margin: 10px 0;
+  }
+
+  .security-notes li {
+    margin: 8px 0;
+  }
+
+  .flow-example {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 4px;
+    margin: 20px 0;
+  }
+
+  .flow-example pre {
+    margin: 0;
+    font-family: monospace;
+    line-height: 1.6;
+  }
+
+  code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+  }
+</style>

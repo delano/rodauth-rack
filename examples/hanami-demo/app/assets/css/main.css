@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Custom styles for Hanami + Vue integration
+ */
+
+@layer base {
+  html {
+    @apply h-full bg-gray-50 dark:bg-gray-900;
+  }
+
+  body {
+    @apply h-full;
+  }
+}
+
+@layer components {
+  /* Ensure Vue mount points don't flash */
+  [id$="-app"] {
+    @apply min-h-[200px];
+  }
+
+  /* Loading state for Vue components */
+  [id$="-app"]:empty::after {
+    content: 'Loading...';
+    @apply flex items-center justify-center text-gray-500 dark:text-gray-400 py-12;
+  }
+}

@@ -19,5 +19,6 @@ module Rodauth
     include Rodauth::Rack::Hanami::Feature::Session
     include Rodauth::Rack::Hanami::Feature::Email if defined?(Hanami::Mailer)
     include Rodauth::Rack::Hanami::Feature::Rom if defined?(ROM)
+
   end
 end

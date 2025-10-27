@@ -1,0 +1,82 @@
+# frozen_string_literal: true
+
+require "dotenv/load"
+require_relative "lib/rodauth_app"
+require "sinatra"
+
+# Example Sinatra application with Rodauth authentication
+class <%= app_name %> < Sinatra::Base
+<% unless api_only? -%>
+  # Enable sessions (required for Rodauth unless using JWT)
+  enable :sessions
+  set :session_secret, ENV.fetch("SESSION_SECRET")
+
+<% end -%>
+  # Home page
+  get "/" do
+<% if api_only? -%>
+    content_type :json
+    { message: "Welcome to <%= app_name %> API" }.to_json
+<% else -%>
+    erb :index
+<% end -%>
+  end
+
+<% unless api_only? -%>
+  # Protected route example
+  get "/dashboard" do
+    # This route requires authentication
+    # The Rodauth middleware will intercept and redirect to login if needed
+    erb :dashboard
+  end
+
+<% end -%>
+  # Health check endpoint
+  get "/health" do
+    content_type :json
+    { status: "ok" }.to_json
+  end
+<% unless api_only? -%>
+
+  # Example views (create these in views/ directory)
+  __END__
+
+  @@ index
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title><%= app_name %></title>
+  </head>
+  <body>
+    <h1>Welcome to <%= app_name %></h1>
+    <nav>
+      <a href="/login">Login</a>
+      <a href="/create-account">Sign Up</a>
+      <a href="/dashboard">Dashboard</a>
+    </nav>
+  </body>
+  </html>
+
+  @@ dashboard
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>Dashboard - <%= app_name %></title>
+  </head>
+  <body>
+    <h1>Dashboard</h1>
+    <p>You are logged in!</p>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </body>
+  </html>
+<% end -%>
+end
+
+# Use Rodauth middleware before your Sinatra app
+use RodauthApp
+
+# Run your Sinatra application
+run <%= app_name %>

@@ -21,8 +21,16 @@ gem "sqlite3", "~> 2.4"
 # Password hashing
 gem "bcrypt", "~> 3.1"
 
+# OTP (One-Time Password) for MFA
+gem "rotp", "~> 6.3"
+gem "rqrcode", "~> 2.2"
+
+# Email sending for authentication features
+gem "mail", "~> 2.8"
+
 # Web server
 gem "puma", "~> 6.4"
+gem "rackup", "~> 2.1"
 
 group :development do
   gem "hanami-webconsole", "~> 2.2"
