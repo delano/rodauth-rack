@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "rodauth/rack"
+require "rodauth/tools"
 require "rack/test"
 
 RSpec.configure do |config|

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 # lib/rodauth/features/table_guard.rb
 
-# Ensure dependencies are loaded (they should be via require 'rodauth/rack')
+# Ensure dependencies are loaded (they should be via require 'rodauth/tools')
 require_relative "../table_inspector" unless defined?(Rodauth::TableInspector)
 require_relative "../sequel_generator" unless defined?(Rodauth::SequelGenerator)
 

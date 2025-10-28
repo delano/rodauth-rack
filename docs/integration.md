@@ -282,9 +282,9 @@ rodauth.account_status_id       # Account status ID
 Rodauth requires database tables. Use the migration generator:
 
 ```ruby
-require 'rodauth/rack'
+require 'rodauth/tools'
 
-generator = Rodauth::Rack::Generators::Migration.new(
+generator = Rodauth::Tools::Migration.new(
   features: [:base, :verify_account, :reset_password],
   prefix: 'account'
 )
@@ -513,9 +513,9 @@ end
 1. **Migration Generator** - Generate Sequel migrations for Rodauth tables:
 
 ```ruby
-require 'rodauth/rack'
+require 'rodauth/tools'
 
-generator = Rodauth::Rack::Generators::Migration.new(
+generator = Rodauth::Tools::Migration.new(
   features: [:base, :verify_account],
   prefix: 'account'
 )

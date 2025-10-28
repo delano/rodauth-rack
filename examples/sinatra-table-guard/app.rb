@@ -17,7 +17,7 @@ require "logger"
 # Add lib to load path so we can require our modules
 $LOAD_PATH.unshift File.expand_path("../../lib", __dir__)
 
-require "rodauth/rack"
+require "rodauth/tools"
 
 # Database setup
 DB = Sequel.connect(

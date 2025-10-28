@@ -94,9 +94,6 @@ Examples:
 # Run all tests
 bundle exec rspec
 
-# Run specific test file
-bundle exec rspec spec/rodauth/rack/adapter_spec.rb
-
 # Run with coverage
 COVERAGE=true bundle exec rspec
 ```
