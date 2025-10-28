@@ -182,16 +182,33 @@ module Rodauth
 
     # Check if a table exists in the database
     #
+    # Temporarily suppresses Sequel's logger to avoid confusing error logs
+    # when checking non-existent tables (Sequel logs SQLite exceptions before
+    # catching them internally).
+    #
     # @param table_name [String, Symbol] Table name
     # @return [Boolean] True if table exists
     def table_exists?(table_name)
       return true if table_guard_skip_tables.include?(table_name.to_sym) ||
                      table_guard_skip_tables.include?(table_name.to_s)
 
+      # Temporarily suppress Sequel's logger to prevent confusing error logs
+      # during table existence checks. Sequel's table_exists? implementation
+      # attempts a SELECT query and logs the exception if table doesn't exist,
+      # even though it catches the error internally.
+      original_logger = db.loggers.dup
+      db.loggers.clear
+
       db.table_exists?(table_name)
     rescue StandardError => e
       rodauth_warn("[table_guard] Unable to check table existence for #{table_name}: #{e.message}")
       true # Assume exists to avoid false positives
+    ensure
+      # Restore original loggers
+      if original_logger
+        db.loggers.clear
+        original_logger.each { |logger| db.loggers << logger }
+      end
     end
 
     # List all required table names (sorted)
@@ -315,7 +332,7 @@ module Rodauth
         # Drop all existing tables in reverse dependency order
         rodauth_info("[table_guard] Recreating #{all_tables.size} table(s) (dropping all, creating fresh)...")
         all_tables.reverse.each do |table_name|
-          if db.table_exists?(table_name)
+          if table_exists?(table_name)
             db.drop_table(table_name, cascade: true) rescue db.drop_table(table_name)
             rodauth_debug("[table_guard] Dropped #{table_name}") if ENV['RODAUTH_DEBUG']
           end
@@ -347,7 +364,7 @@ module Rodauth
         # Drop all existing tables in reverse dependency order
         rodauth_info("[table_guard] Dropping #{all_tables.size} table(s)...")
         all_tables.reverse.each do |table_name|
-          if db.table_exists?(table_name)
+          if table_exists?(table_name)
             db.drop_table(table_name, cascade: true) rescue db.drop_table(table_name)
             rodauth_debug("[table_guard] Dropped #{table_name}") if ENV['RODAUTH_DEBUG']
           end
@@ -355,7 +372,7 @@ module Rodauth
 
         # Drop Sequel migration tracking tables so migrations re-run from scratch
         [:schema_info, :schema_migrations].each do |tracking_table|
-          if db.table_exists?(tracking_table)
+          if table_exists?(tracking_table)
             db.drop_table(tracking_table)
             rodauth_debug("[table_guard] Dropped migration tracking table: #{tracking_table}") if ENV['RODAUTH_DEBUG']
           end
