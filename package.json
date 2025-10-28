@@ -1,0 +1,11 @@
+{
+  "name": "rodauth-rack",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "markdownlint-cli2": "^0.15.0"
+  },
+  "scripts": {
+    "lint:md": "markdownlint-cli2 '**/*.md' '#node_modules'"
+  }
+}

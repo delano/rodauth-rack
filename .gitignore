@@ -80,9 +80,6 @@ support/schemas/
 tsconfig.tsbuildinfo
 *.db
 
-# Ignore WIP or temp dev files with uppercase names
-[A-Z]*.rb
-[A-Z]*.ts
 
 # Environment files
 .env*

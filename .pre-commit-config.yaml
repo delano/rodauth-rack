@@ -29,14 +29,16 @@ repos:
         pass_filenames: false
 
   # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.43.0
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.18.1
     hooks:
-      - id: markdownlint
-        args: [--fix]
-        files: \.(md|markdown)$
+      - id: markdownlint-cli2
+        args: [--fix, --config, .markdownlint-cli2.jsonc]
 
   # Commit message checks
+  #
+  # Prefix must be one of: feat, fix, docs, style, refactor, perf, test, build, ci, chore
+  #
   - repo: https://github.com/jorisroovers/gitlint
     rev: v0.19.1
     hooks:
