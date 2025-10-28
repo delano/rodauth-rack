@@ -2,10 +2,83 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
-require "rodauth/rack"
-
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
-
+require "sequel"
+require "rodauth"
+require "roda"
 require "irb"
+
+# Load rodauth-rack
+require_relative "../lib/rodauth/rack"
+
+puts "
+=== Rodauth Table Guard Console ==="
+
+# Try to load Hanami demo if it exists
+hanami_dir = File.expand_path("../examples/hanami-demo", __dir__)
+if File.exist?(hanami_dir)
+  begin
+    Dir.chdir(hanami_dir) do
+      ENV["HANAMI_ENV"] ||= "development"
+      require "hanami/boot"
+
+      puts "
+✓ Hanami demo app loaded"
+      puts "  Access via: RodauthApp.rodauth"
+    end
+  rescue StandardError => e
+    puts "
+⚠️  Could not load Hanami demo: #{e.message}"
+  end
+end
+
+# Helper to create a test database with tables
+def setup_test_db
+  db = Sequel.sqlite
+
+  # Create accounts table
+  db.create_table :accounts do
+    primary_key :id
+    String :email, null: false, unique: true
+    String :status, default: "unverified"
+  end
+
+  # Create password hash table
+  db.create_table :account_password_hashes do
+    foreign_key :id, :accounts, primary_key: true
+    String :password_hash, null: false
+  end
+
+  puts "✓ Created test database with accounts and account_password_hashes tables"
+  db
+end
+
+# Helper to create a Roda app with Rodauth
+def create_app(db, features: %i[login logout], table_guard_mode: nil)
+  Class.new(Roda) do
+    plugin :rodauth do
+      self.db db
+      enable(*features)
+      enable :table_guard
+      table_guard_mode(table_guard_mode) if table_guard_mode
+    end
+
+    route do |r|
+      r.rodauth
+      r.root { "Rodauth Test App" }
+    end
+  end
+end
+
+puts "
+Available helpers:"
+puts "  setup_test_db                           # Create test SQLite DB"
+puts "  create_app(db, features:, table_guard_mode:)  # Create Roda app"
+puts "
+Example session:"
+puts "  db = setup_test_db"
+puts "  rodauth = create_app(db).rodauth"
+puts "  rodauth.list_all_required_tables"
+puts "  rodauth.table_status"
+puts ""
+
 IRB.start(__FILE__)
