@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 # lib/rodauth/rack/generators/migration.rb
 require "erb"
+require "dry/inflector"
 
 module Rodauth
   module Rack
@@ -110,9 +111,12 @@ module Rodauth
 
         # Helper method for templates to pluralize table names
         def pluralize(str)
-          return str if str.end_with?("s")
+          inflector.pluralize(str)
+        end
 
-          "#{str}s"
+        # Cached inflector instance
+        def inflector
+          @inflector ||= Dry::Inflector.new
         end
 
         # Mock database object for Sequel templates when no real db is provided

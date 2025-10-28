@@ -323,6 +323,7 @@ DEPENDENCIES
   bcrypt (~> 3.1)
   bundler-audit
   capybara
+  dry-inflector
   irb
   jwt (~> 3.1)
   rack-test (~> 2.1)
