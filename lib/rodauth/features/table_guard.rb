@@ -7,7 +7,7 @@
 #   enable :table_guard
 #
 # Configuration:
-#   table_guard_mode :warn    # :warn, :error, :silent, or block
+#   table_guard_mode :warn    # :warn, :error, :silent, or pass a block to customize
 #   table_guard_skip_tables [:some_table]  # Skip checking specific tables
 
 module Rodauth

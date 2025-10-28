@@ -1,105 +1,115 @@
 # Rodauth::Rack
 
-Framework-agnostic [Rodauth](http://rodauth.jeremyevans.net) authentication integration for Rack 3 applications. Learning project based on [rodauth-rails](https://github.com/janko/rodauth-rails).
+Framework-agnostic utilities for [Rodauth](http://rodauth.jeremyevans.net) authentication. Provides external Rodauth features and Sequel migration generators.
+
+**Project Status**: Experimental learning project. Not published to RubyGems.
 
 ## Overview
 
-Rodauth::Rack provides core Rodauth authentication functionality for any Rack framework (Rails, Hanami, Sinatra, Roda, etc.) through a flexible adapter interface. This project extracts the framework-agnostic parts of [rodauth-rails](https://github.com/janko/rodauth-rails) to enable Rodauth integration across the Ruby web framework ecosystem.
+Rodauth::Rack provides utilities that work with any Rodauth setup, regardless of framework:
 
-**Project Status**: Learning/reference project. Not published to RubyGems. Use by cloning or forking this repo.
+1. **External Rodauth Features** - Like `table_guard` for validating database table setup
+2. **Sequel Migration Generator** - Generate Rodauth database migrations for 19 features
+
+This is NOT a framework adapter. For framework integration, use:
+
+- Rails: [rodauth-rails](https://github.com/janko/rodauth-rails)
+- Others: Integrate Rodauth directly (it's just Roda middleware)
+
+## Installation
+
+Clone this repository:
+
+```bash
+git clone https://github.com/delano/rodauth-rack
+cd rodauth-rack
+bundle install
+```
 
 ## Features
 
-- **Framework Agnostic**: Works with any Rack 3 framework
-- **Adapter Interface**: Clean separation between Rodauth core and framework-specific concerns
-- **Migration Generators**: 19 database migration templates for both ActiveRecord and Sequel
-- **Flexible Middleware**: Easy integration into existing applications
-- **Well Tested**: Comprehensive test suite with >80% coverage
+### 1. Table Guard External Feature
 
-## Architecture
-
-The architecture uses a **feature-based pattern** (Rodauth::Feature), NOT an adapter delegation pattern. See [DEVELOPMENT.md](DEVELOPMENT.md) for details.
-
-### Core Components
-
-```text
-┌─────────────────────────────────────────────────────┐
-│                  Your Application                   │
-│              (Rails, Hanami, Sinatra, etc.)         │
-└──────────────────┬──────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│                 rodauth-rack                        │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  Framework Adapters (optional require)        │  │
-│  │  • Rails    (require "rodauth/rack/rails")    │  │
-│  │  • Hanami   (require "rodauth/rack/hanami")   │  │
-│  └───────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  Core Components                              │  │
-│  │  • Adapter::Base (interface)                  │  │
-│  │  • Middleware (request routing)               │  │
-│  │  • Migration Generators (19 features)         │  │
-│  └───────────────────────────────────────────────┘  │
-└──────────────────┬──────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│                   Rodauth                           │
-│              (Authentication Logic)                 │
-└─────────────────────────────────────────────────────┘
-```
-
-### Adapter Interface
-
-The `Rodauth::Rack::Adapter::Base` class defines approximately 20 methods that framework adapters must implement:
-
-- **View Rendering**: `render`, `view_path`
-- **CSRF Protection**: `csrf_token`, `csrf_field`, `valid_csrf_token?`
-- **Session Management**: `session`, `clear_session`
-- **Flash Messages**: `flash`, `flash_now`
-- **URL Generation**: `url_for`, `request_path`
-- **Email Delivery**: `deliver_email`
-- **Model Integration**: `account_model`, `find_account`
-- **Configuration**: `rodauth_config`, `db`
-
-## Usage
-
-### Migration Generators
-
-Generate database migrations for Rodauth features:
+Validates that required database tables exist for enabled Rodauth features.
 
 ```ruby
-# For Sequel
-generator = Rodauth::Rack::Generators::Migration.new(
-  features: [:base, :verify_account, :otp],
-  orm: :sequel,
-  prefix: "account"
-)
+class RodauthApp < Roda
+  plugin :rodauth do
+    enable :login, :logout, :otp
+    enable :table_guard  # ← Add this
 
-puts generator.generate  # migration content
-puts generator.configuration  # Rodauth config
-
-# For ActiveRecord
-generator = Rodauth::Rack::Generators::Migration.new(
-  features: [:base, :reset_password],
-  orm: :active_record,
-  prefix: "user",
-  db_adapter: :postgresql
-)
-
-File.write("db/migrate/#{Time.now.utc.strftime('%Y%m%d%H%M%S')}_create_rodauth.rb",
-           generator.generate)
+    table_guard_mode :warn  # or :error, :silent
+  end
+end
 ```
 
-#### Available Features
+**Modes:**
 
-The generator supports all 19 Rodauth database features:
+- `:warn` - Print warnings about missing tables
+- `:error` - Raise error if tables are missing (good for production)
+- `:silent` - Disable checking
+- Block - Custom handler (see below)
+
+**Custom Handlers:**
+
+```ruby
+table_guard_mode do |missing|
+  if Rails.env.production?
+    Slack.notify("Missing tables: #{missing.map { |t| t[:table] }.join(', ')}")
+    :error  # Raise error
+  else
+    :continue  # Just continue
+  end
+end
+```
+
+**Introspection:**
+
+```ruby
+rodauth = MyApp.rodauth
+
+# List all required tables
+rodauth.list_all_required_tables
+# => [:accounts, :account_password_hashes, :account_otp_keys, ...]
+
+# Check status of each table
+rodauth.table_status
+# => [{method: :accounts_table, table: :accounts, exists: true}, ...]
+
+# Get missing tables
+rodauth.missing_tables
+# => [{method: :otp_keys_table, table: :account_otp_keys}, ...]
+```
+
+### 2. Sequel Migration Generator
+
+Generate database migrations for Rodauth features.
+
+```ruby
+require "rodauth/rack"
+
+generator = Rodauth::Rack::Generators::Migration.new(
+  features: [:base, :verify_account, :otp],
+  prefix: "account"  # table prefix (default: "account")
+)
+
+# Get migration content
+puts generator.generate
+
+# Get Rodauth configuration
+puts generator.configuration
+# => {
+#   accounts_table: :accounts,
+#   verify_account_table: :account_verification_keys,
+#   otp_keys_table: :account_otp_keys
+# }
+```
+
+**Supported Features** (19 total):
 
 - `base` - Core accounts table
 - `remember` - Remember me functionality
-- `verify_account` - Account verification
+- `verify_account` - Account verification  
 - `verify_login_change` - Login change verification
 - `reset_password` - Password reset
 - `email_auth` - Passwordless email authentication
@@ -117,103 +127,60 @@ The generator supports all 19 Rodauth database features:
 - `disallow_password_reuse` - Password history
 - `jwt_refresh` - JWT refresh tokens
 
-### For Framework Developers
+## Console
 
-If you're building a framework adapter, inherit from `Rodauth::Rack::Adapter::Base` and implement the required methods:
+Interactive console for testing:
 
-```ruby
-module MyFramework
-  class RodauthAdapter < Rodauth::Rack::Adapter::Base
-    def render(template, locals = {})
-      # Render template using your framework's view layer
-    end
-
-    def csrf_token
-      # Return your framework's CSRF token
-    end
-
-    # ... implement other required methods
-  end
-end
+```bash
+bin/console
 ```
 
-### For Application Developers
+Example session:
 
-**Rails Apps:**
+```ruby
+db = setup_test_db
+app = create_app(db, features: [:login, :otp])
+rodauth = app.rodauth
 
-**Use [rodauth-rails](https://github.com/janko/rodauth-rails) instead.** This project is primarily for learning and exploring non-Rails Rack integrations.
-
-**Hanami 2.x Apps:**
-
-1. Add to Gemfile:
-
-   ```ruby
-   gem 'rodauth-rack'
-   gem 'tilt', '~> 2.4'
-   gem 'bcrypt', '~> 3.1'
-   ```
-
-2. Run install generator:
-
-   ```bash
-   bin/rr generate hanami:install
-   # or with options:
-   bin/rr generate hanami:install --json  # JSON API
-   bin/rr generate hanami:install --jwt   # JWT authentication
-   ```
-
-3. Generate database migration:
-
-   ```bash
-   bin/rr generate migration base reset_password verify_account
-   ```
-
-4. Run migration:
-
-   ```bash
-   bundle exec hanami db migrate
-   ```
-
-5. Start server and visit <http://localhost:2300/login>
-
-See [Hanami Generator README](lib/generators/rodauth/hanami_install/README.md) for details.
-
-**Sinatra/Roda Apps:** Use migration generators and implement custom adapter
+rodauth.list_all_required_tables
+rodauth.table_status
+rodauth.missing_tables
+```
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt.
+```bash
+# Run tests
+bundle exec rspec
+
+# Run console
+bin/console
+```
+
+## Architecture
+
+**What this project is:**
+
+- Collection of framework-agnostic Rodauth utilities
+- External Rodauth features (using `Rodauth::Feature.define`)
+- Migration generators for Sequel ORM
+
+**What this project is NOT:**
+
+- A framework adapter (use rodauth-rails for Rails)
+- A replacement for Rodauth itself
+- Published as a gem (it's a learning/reference project)
 
 ## Related Projects
 
 - [rodauth](https://github.com/jeremyevans/rodauth) - The authentication framework
-- [rodauth-rails](https://github.com/janko/rodauth-rails) - Rails integration (inspiration for this project)
+- [rodauth-rails](https://github.com/janko/rodauth-rails) - Rails integration
 - [roda](https://github.com/jeremyevans/roda) - Routing tree web toolkit
-
-## Roadmap
-
-- [x] Core skeleton
-- [x] Migration generators (19 features, both ORMs)
-- [ ] Rails adapter testing
-- [ ] Hanami adapter
-- [ ] CLI tool (separate project)
-- [ ] Demo applications
 
 ## Acknowledgments
 
-This project is based on [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić:
-
-- **Migration Templates**: Database migration templates (ActiveRecord and Sequel) copied directly from rodauth-rails with minimal modifications for framework independence
-- **Generator Patterns**: Migration generator architecture
-- **Configuration**: Feature configuration mapping extracted from rodauth-rails
-
-## AI Development Assistance
-
-This project was developed with assistance from AI tools for initial planning and implementation:
-
-- **Claude (Desktop, Code Max plan, Sonnet 4.5)** - Created issue tickets, project scaffolding, gem structure, migration generators, and documentation
-
-I remain responsible for all design decisions and code. I believe in being transparent about development tools, especially as AI becomes more integrated into our workflows as developers. -- delano
+- **Migration Templates**: Copied from [rodauth-rails](https://github.com/janko/rodauth-rails) by Janko Marohnić
+- **Inspiration**: rodauth-rails' excellent Rails integration
 
 ## License
 

@@ -10,26 +10,8 @@ require "irb"
 # Load rodauth-rack
 require_relative "../lib/rodauth/rack"
 
-puts "
-=== Rodauth Table Guard Console ==="
-
-# Try to load Hanami demo if it exists
-hanami_dir = File.expand_path("../examples/hanami-demo", __dir__)
-if File.exist?(hanami_dir)
-  begin
-    Dir.chdir(hanami_dir) do
-      ENV["HANAMI_ENV"] ||= "development"
-      require "hanami/boot"
-
-      puts "
-✓ Hanami demo app loaded"
-      puts "  Access via: RodauthApp.rodauth"
-    end
-  rescue StandardError => e
-    puts "
-⚠️  Could not load Hanami demo: #{e.message}"
-  end
-end
+puts "\n=== Rodauth::Rack Console ==="
+puts "Utilities for Rodauth: table_guard feature + Sequel migration generator\n"
 
 # Helper to create a test database with tables
 def setup_test_db
@@ -53,7 +35,7 @@ def setup_test_db
 end
 
 # Helper to create a Roda app with Rodauth
-def create_app(db, features: %i[login logout], table_guard_mode: nil)
+def create_app(db, features: [:login, :logout], table_guard_mode: nil)
   Class.new(Roda) do
     plugin :rodauth do
       self.db db
@@ -69,16 +51,15 @@ def create_app(db, features: %i[login logout], table_guard_mode: nil)
   end
 end
 
-puts "
-Available helpers:"
+puts "\nAvailable helpers:"
 puts "  setup_test_db                           # Create test SQLite DB"
 puts "  create_app(db, features:, table_guard_mode:)  # Create Roda app"
-puts "
-Example session:"
+puts "\nExample session:"
 puts "  db = setup_test_db"
 puts "  rodauth = create_app(db).rodauth"
 puts "  rodauth.list_all_required_tables"
 puts "  rodauth.table_status"
+puts "  rodauth.missing_tables"
 puts ""
 
 IRB.start(__FILE__)

@@ -9,17 +9,13 @@ RSpec.describe Rodauth::Rack do
     expect(Rodauth::Rack::Error).to be < StandardError
   end
 
-  describe "configuration" do
-    it "allows setting adapter_class" do
-      adapter = Class.new
-      Rodauth::Rack.adapter_class = adapter
-      expect(Rodauth::Rack.adapter_class).to eq(adapter)
+  describe "Rack compatibility" do
+    it "delegates release to Rack gem" do
+      expect(Rodauth::Rack.release).to eq(::Rack.release)
     end
 
-    it "allows setting account_model" do
-      model = Class.new
-      Rodauth::Rack.account_model = model
-      expect(Rodauth::Rack.account_model).to eq(model)
+    it "provides release_version method" do
+      expect(Rodauth::Rack).to respond_to(:release_version)
     end
   end
 end
