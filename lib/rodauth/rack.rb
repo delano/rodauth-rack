@@ -12,8 +12,12 @@ end
 require_relative "rack/version"
 require_relative "rack/generators/migration"
 
-# Load external Rodauth features (only if Rodauth is available)
-require_relative "../rodauth/features/table_guard" if defined?(Rodauth)
+# Load rodauth-rack utilities (only if Rodauth is available)
+if defined?(Rodauth)
+  require_relative "table_inspector"
+  require_relative "sequel_generator"
+  require_relative "features/table_guard"
+end
 
 module Rodauth
   # Rack integration for Rodauth authentication framework

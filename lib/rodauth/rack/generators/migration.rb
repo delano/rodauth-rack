@@ -7,10 +7,14 @@ module Rodauth
     module Generators
       # Sequel migration generator for Rodauth database tables.
       #
+      # @deprecated This static migration generator is deprecated in favor of
+      #   the dynamic table_guard feature with sequel generation modes.
+      #   Use table_guard_sequel_mode instead for automatic migration generation.
+      #
       # Generates migrations for Sequel ORM, supporting
       # PostgreSQL, MySQL, and SQLite databases.
       #
-      # @example Generate a migration
+      # @example Generate a migration (DEPRECATED)
       #   generator = Rodauth::Rack::Generators::Migration.new(
       #     features: [:base, :verify_account, :otp],
       #     orm: :sequel,
@@ -20,10 +24,20 @@ module Rodauth
       #
       #   generator.generate # => migration content
       #   generator.configuration # => Rodauth config hash
+      #
+      # @example Use table_guard instead (RECOMMENDED)
+      #   plugin :rodauth do
+      #     enable :base, :verify_account, :otp, :table_guard
+      #     table_guard_sequel_mode :migration
+      #   end
       class Migration
         attr_reader :features, :orm, :prefix, :db_adapter, :db
 
         # Feature configuration mapping for Rodauth
+        #
+        # @deprecated This static configuration is replaced by dynamic discovery
+        #   via Rodauth::TableInspector. The table_guard feature now discovers
+        #   tables dynamically from enabled features at runtime.
         #
         # Maps feature names to their required table configurations
         CONFIGURATION = {
@@ -75,6 +89,10 @@ module Rodauth
         # @param db_adapter [Symbol] Database adapter (:postgresql, :mysql2, :sqlite3)
         # @param db [Sequel::Database] Sequel database connection (for Sequel ORM only)
         def initialize(features:, orm: :sequel, prefix: nil, db_adapter: nil, db: nil)
+          warn "DEPRECATION WARNING: Rodauth::Rack::Generators::Migration is deprecated. " \
+               "Use table_guard feature with sequel_mode instead. " \
+               "See: https://github.com/delano/rodauth-rack#table-guard"
+
           @features = Array(features).map(&:to_sym)
           @orm = orm.to_sym
           @prefix = prefix
