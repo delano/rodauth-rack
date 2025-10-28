@@ -31,14 +31,15 @@ module Rodauth
 
     # Generate a complete Sequel migration with up and down blocks
     #
+    # @param idempotent [Boolean] Use create_table? for idempotency (default: true)
     # @return [String] Complete Sequel migration code
-    def generate_migration
+    def generate_migration(idempotent: true)
       <<~RUBY
         # frozen_string_literal: true
 
         Sequel.migration do
           up do
-        #{indent(generate_create_statements, 4)}
+        #{indent(generate_create_statements(idempotent: idempotent), 4)}
           end
 
           down do
@@ -50,8 +51,9 @@ module Rodauth
 
     # Generate only the CREATE TABLE statements
     #
+    # @param idempotent [Boolean] Use create_table? for idempotency (default: true)
     # @return [String] Sequel CREATE TABLE code
-    def generate_create_statements
+    def generate_create_statements(idempotent: true)
       statements = []
 
       # Group tables by dependency order (accounts first, then others)
@@ -62,7 +64,7 @@ module Rodauth
         method_name = table_info[:method]
 
         structure = TableInspector.infer_table_structure(method_name, table_name)
-        statements << generate_create_table(table_name, structure)
+        statements << generate_create_table(table_name, structure, idempotent: idempotent)
       end
 
       statements.join("\n\n")
@@ -117,7 +119,7 @@ module Rodauth
     # @param table_name [String, Symbol] Table name
     # @param structure [Hash] Table structure metadata
     # @return [String] Sequel CREATE TABLE code
-    def generate_create_table(table_name, structure)
+    def generate_create_table(table_name, structure, idempotent: true)
       lines = []
 
       # Add comment if known feature
@@ -126,7 +128,9 @@ module Rodauth
         lines << "# Table for #{feature} feature" if feature
       end
 
-      lines << "create_table(:#{table_name}) do"
+      # Use create_table? for idempotent migrations (safe if table exists)
+      create_method = idempotent ? "create_table?" : "create_table"
+      lines << "#{create_method}(:#{table_name}) do"
 
       # Primary key
       if structure[:primary_key]

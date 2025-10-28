@@ -122,7 +122,6 @@ end
 
 **Configuration Mapping:**
 
-- `CONFIGURATION` hash maps feature names to Rodauth config method names
 - Uses `%<plural>s` and `%<singular>s` format strings for table naming
 - `configuration()` method interpolates prefix and returns Rodauth config hash
 

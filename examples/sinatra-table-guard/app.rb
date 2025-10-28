@@ -48,9 +48,15 @@ class RodauthApp < Roda
     # Table guard configuration - try different modes!
     # Uncomment the mode you want to test:
 
-    # Mode 1: Error with helpful hints (default for demo)
-    table_guard_mode :error
+    # Mode 1: Auto-create (development convenience)
+    table_guard_mode :warn
     table_guard_sequel_mode :create  # Auto-create missing tables
+
+    # PRODUCTION PATTERN: Use migrations as source of truth
+    # if ENV['RACK_ENV'] == 'production'
+    #   table_guard_mode :raise  # Fail if tables missing
+    #   table_guard_sequel_mode nil  # Never auto-create
+    # end
 
     # Mode 2: Error log but continue
     # table_guard_mode :error
@@ -70,7 +76,11 @@ class RodauthApp < Roda
     # table_guard_mode :warn
     # table_guard_sequel_mode :create
 
-    # Mode 7: Custom handler
+    # Mode 7: Drop and recreate ALL tables every startup (dev/test only - fresh start)
+    # table_guard_mode :warn
+    # table_guard_sequel_mode :recreate
+
+    # Mode 8: Custom handler
     # table_guard_mode do |missing, config|
     #   puts "\n=== CUSTOM HANDLER ==="
     #   puts "Missing #{missing.size} tables:"

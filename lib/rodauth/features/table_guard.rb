@@ -48,8 +48,11 @@ require_relative "../sequel_generator" unless defined?(Rodauth::SequelGenerator)
 #   # Create tables immediately (JIT)
 #   table_guard_sequel_mode :create
 #
-#   # Drop and recreate (dev/test only)
+#   # Drop and recreate missing tables (dev/test only)
 #   table_guard_sequel_mode :sync
+#
+#   # Drop and recreate ALL tables every startup (dev/test only)
+#   table_guard_sequel_mode :recreate
 
 module Rodauth
   Feature.define(:table_guard, :TableGuard) do
@@ -131,7 +134,8 @@ module Rodauth
     def check_required_tables!
       missing = missing_tables
 
-      if missing.empty?
+      # Special case: :recreate mode always runs, even when no tables are missing
+      if missing.empty? && table_guard_sequel_mode != :recreate
         rodauth_info('')
         rodauth_info("─" * 70)
         rodauth_info("✅ TableGuard: All required tables exist")
@@ -141,8 +145,8 @@ module Rodauth
         return
       end
 
-      # Handle based on validation mode
-      handle_table_guard_mode(missing)
+      # Handle based on validation mode (unless recreate mode which handles its own validation)
+      handle_table_guard_mode(missing) unless table_guard_sequel_mode == :recreate
 
       # Generate Sequel if configured
       handle_sequel_generation(missing) if table_guard_sequel_mode
@@ -286,15 +290,45 @@ module Rodauth
 
       when :sync
         unless %w[dev development test].any? { |env| ENV['RACK_ENV']&.start_with?(env) }
-          rodauth_error("[table_guard] Sync mode only available in dev/test environments (current: #{ENV['RACK_ENV']})")
+          rodauth_error("[table_guard] :sync mode only available in dev/test environments (current: #{ENV['RACK_ENV']})")
           return
         end
 
-        # Drop and recreate
+        # Drop and recreate only missing tables
         rodauth_info("[table_guard] Syncing #{missing.size} table(s)...")
         generator.execute_drops(db)
         generator.execute_creates(db)
         rodauth_info("[table_guard] Synced #{missing.size} table(s) (dropped and recreated)")
+
+        # Re-validate to show success message
+        revalidate_after_creation
+
+      when :recreate
+        unless %w[dev development test].any? { |env| ENV['RACK_ENV']&.start_with?(env) }
+          rodauth_error("[table_guard] :recreate mode only available in dev/test environments (current: #{ENV['RACK_ENV']})")
+          return
+        end
+
+        # Get all required tables from configuration
+        all_tables = table_configuration.map { |_, info| info[:name] }.uniq
+
+        # Drop all existing tables in reverse dependency order
+        rodauth_info("[table_guard] Recreating #{all_tables.size} table(s) (dropping all, creating fresh)...")
+        all_tables.reverse.each do |table_name|
+          if db.table_exists?(table_name)
+            db.drop_table(table_name, cascade: true) rescue db.drop_table(table_name)
+            rodauth_debug("[table_guard] Dropped #{table_name}") if ENV['RODAUTH_DEBUG']
+          end
+        end
+
+        # Create all tables fresh (uses missing_tables which should now be all of them)
+        current_missing = missing_tables
+        if current_missing.any?
+          generator_for_all = Rodauth::SequelGenerator.new(current_missing, self)
+          generator_for_all.execute_creates(db)
+        end
+
+        rodauth_info("[table_guard] Recreated #{all_tables.size} table(s)")
 
         # Re-validate to show success message
         revalidate_after_creation
