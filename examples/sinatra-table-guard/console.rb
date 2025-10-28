@@ -11,11 +11,11 @@
 
 require 'stringio'
 require_relative "app"
-require "rodauth/rack/console_helpers"
+require "rodauth/tools/console_helpers"
 
 # Console context module that provides rodauth instance access
 module ConsoleContext
-  extend Rodauth::Rack::ConsoleHelpers
+  extend Rodauth::Tools::ConsoleHelpers
 
   # Create a Rodauth instance for console use
   #

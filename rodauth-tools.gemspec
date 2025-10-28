@@ -1,10 +1,10 @@
 # rodauth-rack.gemspec
 
-require_relative "lib/rodauth/rack/version"
+require_relative "lib/rodauth/tools/version"
 
 Gem::Specification.new do |spec|
   spec.name = "rodauth-rack"
-  spec.version = Rodauth::Rack::VERSION
+  spec.version = Rodauth::Tools::VERSION
   spec.authors = ["delano"]
   spec.summary = "Framework-agnostic Rodauth integration for Rack 3: Based on rodauth-rails"
   spec.required_ruby_version = ">= 3.2.0"

@@ -13,17 +13,13 @@ Framework-agnostic utilities for Rodauth authentication:
 
 **Status:** Experimental learning project. Not published to RubyGems.
 
+**Recent Refactoring (2025-10):** Namespace changed from `Rodauth::Rack::Generators::Migration` to `Rodauth::Tools::Migration`. This reflects the project's evolution away from being a Rack adapter toward being a collection of framework-agnostic utilities. The migration generator is now deprecated in favor of the `table_guard` feature with `sequel_mode`.
+
 ## Development Commands
 
 ```bash
 # Run all tests
 bundle exec rspec
-
-# Run specific test file
-bundle exec rspec spec/rodauth/rack/generators/migration_spec.rb
-
-# Run specific test
-bundle exec rspec spec/rodauth/rack/generators/migration_spec.rb:50
 
 # Interactive console with helpers
 bin/console
@@ -41,13 +37,14 @@ bin/console
 - Configurable modes: `:warn`, `:error`, `:silent`, or custom block handler
 - Demonstrates proper feature lifecycle hooks and configuration DSL
 
-**lib/rodauth/rack/generators/migration.rb** - Sequel migration generator
+**lib/rodauth/tools/migration.rb** - Sequel migration generator
 
 - Generates database migrations for 19 Rodauth features
-- Uses ERB templates in `lib/rodauth/rack/generators/migration/sequel/`
-- Maps features to table configurations via `CONFIGURATION` hash
-- Provides `generate()` for migration content and `configuration()` for Rodauth config
+- Uses ERB templates in `lib/rodauth/tools/migration/sequel/`
+- Provides `generate()` for migration content and `migration_name()` for filename
+- Uses dry-inflector gem for robust table name pluralization
 - Mock database adapter pattern when no real DB connection provided
+- Deprecated in favor of table_guard feature with sequel_mode
 
 ### How Rodauth Features Work
 
@@ -114,22 +111,26 @@ end
 
 ### Migration Generator Architecture
 
+**Note:** The Migration class is deprecated. For new code, use the `table_guard` feature with `sequel_mode` instead.
+
 **Template System:**
 
-- Each feature has ERB template in `lib/rodauth/rack/generators/migration/sequel/`
+- Each feature has ERB template in `lib/rodauth/tools/migration/sequel/`
 - Templates use binding from Migration instance for variables like `table_prefix`
 - `generate()` loads, evaluates, and concatenates all feature templates
 
-**Configuration Mapping:**
+**Pluralization:**
 
-- Uses `%<plural>s` and `%<singular>s` format strings for table naming
-- `configuration()` method interpolates prefix and returns Rodauth config hash
+- Uses `dry-inflector` gem for intelligent pluralization (e.g., "status" → "statuses")
+- Helper method `pluralize(str)` available in templates via ERB binding
+- Removed Rails/ActiveRecord dependencies (68 lines of cruft eliminated)
 
 **Database Adapter Pattern:**
 
 - `MockSequelDatabase` simulates database when no real connection provided
 - Allows template generation without active database
 - Real `Sequel::Database` object can be passed for actual migrations
+- Supports PostgreSQL, MySQL, and SQLite database types
 
 ## Testing Patterns
 

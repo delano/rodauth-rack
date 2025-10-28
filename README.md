@@ -88,7 +88,7 @@ Generate database migrations for Rodauth features.
 ```ruby
 require "rodauth/rack"
 
-generator = Rodauth::Rack::Generators::Migration.new(
+generator = Rodauth::Tools::Migration.new(
   features: [:base, :verify_account, :otp],
   prefix: "account"  # table prefix (default: "account")
 )
@@ -170,6 +170,36 @@ bin/console
 - A framework adapter (use rodauth-rails for Rails)
 - A replacement for Rodauth itself
 - Published as a gem (it's a learning/reference project)
+
+## Documentation
+
+### Guides
+
+- **[Multi-Datastore Authentication](docs/guides/multi-datastore-auth.md)** - Patterns for synchronizing Rodauth (SQL) with application datastores (Redis, NoSQL)
+  - Simple sync, idempotent sync, and event-driven approaches
+  - Decision flowchart and CAP theorem tradeoffs
+  - Testing strategies and security considerations
+
+- **[Sequel Migrations](docs/sequel-migrations.md)** - Integrating table_guard with Sequel migrations
+  - Idempotent migration patterns
+  - Environment-specific configuration
+  - Using table_guard to validate external datastores
+
+### Examples
+
+- **[OneTimeSecret Sync Pattern](docs/examples/onetimesecret-sync-pattern.md)** - Production-grade session synchronization
+  - Real-world implementation with idempotency, graceful degradation, and correlation tracking
+  - Lessons learned and performance characteristics
+
+### API Reference
+
+- **[Rodauth Feature API](docs/rodauth-features-api.md)** - Complete DSL reference for feature development
+- **[Rodauth Internals](docs/rodauth-internals.rdoc)** - Object model and metaprogramming patterns
+- **[Mail Configuration](docs/rodauth-mail.md)** - Email and SMTP setup
+
+### Architecture Decisions
+
+- **[ADR 001: No session_glue Feature](docs/adr/001-no-session-glue-feature.md)** - Why multi-datastore sync is application-level, not framework-level
 
 ## Related Projects
 

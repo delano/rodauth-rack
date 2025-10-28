@@ -1,23 +1,23 @@
 # frozen_string_literal: true
 
 module Rodauth
-  module Rack
+  module Tools
     # Console helper methods for inspecting Rodauth table configuration
     #
     # Usage in console:
-    #   require 'rodauth/rack/console_helpers'
-    #   include Rodauth::Rack::ConsoleHelpers
+    #   require 'rodauth/tools/console_helpers'
+    #   include Rodauth::Tools::ConsoleHelpers
     #   rodauth.table_configuration
     #
     # Or use the convenience loader:
-    #   Rodauth::Rack::ConsoleHelpers.load!(rodauth_instance)
+    #   Rodauth::Tools::ConsoleHelpers.load!(rodauth_instance)
     module ConsoleHelpers
       # Get or create a Rodauth instance
       #
       # Override this method in your console script to provide the actual instance
       def rodauth
         @rodauth ||= begin
-          raise NotImplementedError, "You must define a `rodauth` method that returns a Rodauth instance"
+          raise NotImplementedError, 'You must define a `rodauth` method that returns a Rodauth instance'
         end
       end
 
@@ -63,7 +63,7 @@ module Rodauth
       def show_missing
         puts "\n=== Missing Tables ==="
         if missing.empty?
-          puts "✓ All tables exist!"
+          puts '✓ All tables exist!'
         else
           missing.each do |info|
             puts "✗ #{info[:table]} (feature: #{info[:feature]})"
@@ -76,7 +76,7 @@ module Rodauth
       def show_status
         puts "\n=== Table Status ==="
         status.each do |info|
-          marker = info[:exists] ? "✓" : "✗"
+          marker = info[:exists] ? '✓' : '✗'
           puts "#{marker} #{info[:table].to_s.ljust(30)} (#{info[:feature]})"
         end
         nil
@@ -87,7 +87,7 @@ module Rodauth
         puts "\n=== Creating Missing Tables ==="
         missing_list = missing
         if missing_list.empty?
-          puts "✓ All tables already exist!"
+          puts '✓ All tables already exist!'
           return
         end
 
@@ -103,7 +103,7 @@ module Rodauth
         puts "\n=== Generated Migration ==="
         missing_list = missing
         if missing_list.empty?
-          puts "✓ All tables exist - no migration needed"
+          puts '✓ All tables exist - no migration needed'
           return
         end
 
