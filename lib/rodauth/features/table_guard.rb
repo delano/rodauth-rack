@@ -107,9 +107,18 @@ module Rodauth
     #
     # Returns true unless mode is :skip, :silent, or nil
     def should_check_tables?
+      # Check if table_guard_mode is defined as a block (has parameters)
+      # by checking the method's arity. If arity > 0, it's a block that
+      # expects arguments and we can't call it without args.
+      mode_method = method(:table_guard_mode)
+
+      # If method expects parameters (arity > 0), it's a custom block handler
+      return true if mode_method.arity > 0
+
+      # Safe to call the method - it either returns a symbol or is a 0-arity block
       mode_value = table_guard_mode
 
-      # Always check if mode is a Proc (custom handler)
+      # Always check if mode is a Proc (0-arity custom handler)
       return true if mode_value.is_a?(Proc)
 
       # Check if mode indicates checking is enabled
@@ -238,38 +247,16 @@ module Rodauth
     #
     # @param missing [Array<Hash>] Missing table information
     def handle_table_guard_mode(missing)
-      # Try to get mode as a symbol first
-      begin
-        mode = table_guard_mode
+      # Check if table_guard_mode is a block by inspecting method arity
+      mode_method = method(:table_guard_mode)
 
-        case mode
-        when :silent, :skip, nil
-          rodauth_debug("[table_guard] Discovered #{@table_configuration.size} tables, skipping validation")
-
-        when :warn
-          rodauth_warn(build_missing_tables_message(missing))
-
-        when :error
-          rodauth_error(build_missing_tables_error(missing))
-          rodauth_warn(build_migration_hints(missing))
-
-        when :raise
-          rodauth_error(build_missing_tables_error(missing))
-          raise Rodauth::ConfigurationError, build_missing_tables_message(missing)
-
-        when :halt, :exit
-          rodauth_error(build_missing_tables_error(missing))
-          exit(1)
-
-        else
-          raise Rodauth::ConfigurationError,
-                "Invalid table_guard_mode: #{mode.inspect}. " \
-                "Expected :silent, :skip, :warn, :error, :raise, :halt, or a Proc."
-        end
-      rescue ArgumentError
-        # table_guard_mode is a block that expects arguments
-        # Call it with missing tables and configuration
-        result = table_guard_mode(missing, table_configuration)
+      # If method expects parameters, it's a custom block handler
+      if mode_method.arity > 0
+        # Call with appropriate arguments based on arity
+        result = case mode_method.arity
+                 when 1 then table_guard_mode(missing)
+                 else table_guard_mode(missing, table_configuration)
+                 end
 
         case result
         when :error, :raise, true
@@ -278,6 +265,46 @@ module Rodauth
           raise Rodauth::ConfigurationError, result
           # :continue, nil, false means don't raise
         end
+        return
+      end
+
+      # Safe to call without arguments - get the mode value
+      mode = table_guard_mode
+
+      # If it's a 0-arity Proc, call it
+      if mode.is_a?(Proc)
+        result = mode.call
+
+        case result
+        when :error, :raise, true
+          raise Rodauth::ConfigurationError, build_missing_tables_message(missing)
+        when String
+          raise Rodauth::ConfigurationError, result
+          # :continue, nil, false means don't raise
+        end
+        return
+      end
+
+      # Handle symbol modes
+      case mode
+      when :silent, :skip, nil
+        rodauth_debug("[table_guard] Discovered #{@table_configuration.size} tables, skipping validation")
+
+      when :warn
+        rodauth_warn(build_missing_tables_message(missing))
+
+      when :error, :raise
+        rodauth_error(build_missing_tables_error(missing))
+        raise Rodauth::ConfigurationError, build_missing_tables_message(missing)
+
+      when :halt, :exit
+        rodauth_error(build_missing_tables_error(missing))
+        exit(1)
+
+      else
+        raise Rodauth::ConfigurationError,
+              "Invalid table_guard_mode: #{mode.inspect}. " \
+              "Expected :silent, :skip, :warn, :error, :raise, :halt, or a Proc."
       end
     end
 
