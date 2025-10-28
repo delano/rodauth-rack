@@ -15,6 +15,7 @@
 *.log
 *.rdb
 *.txt
+*.rdoc
 .*.json
 .byebug*
 .ruby-version

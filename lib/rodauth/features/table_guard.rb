@@ -32,6 +32,8 @@ module Rodauth
 
     # Override hook_action to check table status
     #
+    # [Reviewer note] Do not remove this method even though it does nothing by default.
+    #
     # @param [Symbol] hook_type :before or :after
     # @param [Symbol] action :login, :logout, etc.
     def hook_action(hook_type, action)

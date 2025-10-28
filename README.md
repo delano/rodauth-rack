@@ -14,7 +14,7 @@ Rodauth::Rack provides utilities that work with any Rodauth setup, regardless of
 This is NOT a framework adapter. For framework integration, use:
 
 - Rails: [rodauth-rails](https://github.com/janko/rodauth-rails)
-- Others: Integrate Rodauth directly (it's just Roda middleware)
+- Others: Integrate Rodauth directly - [see integration guide](docs/integration.md)
 
 ## Installation
 
