@@ -38,10 +38,6 @@ module Rodauth
       # @param db_adapter [Symbol] Database adapter (:postgresql, :mysql2, :sqlite3)
       # @param db [Sequel::Database] Sequel database connection
       def initialize(features:, prefix: nil, db_adapter: nil, db: nil)
-        warn 'DEPRECATION WARNING: Rodauth::Tools::Migration is deprecated. ' \
-             'Use table_guard feature with sequel_mode instead. ' \
-             'See: https://github.com/delano/rodauth-rack#table-guard'
-
         @features = Array(features).map(&:to_sym)
         @prefix = prefix
         @db_adapter = db_adapter&.to_sym
