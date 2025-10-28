@@ -278,6 +278,44 @@ Before deploying to production:
 
 ## Troubleshooting
 
+### Problem: SQLite3::SQLException errors in logs during startup
+
+**Cause:** Sequel's `table_exists?` method checks for tables by attempting a SELECT query. When tables don't exist, SQLite raises an exception that Sequel catches internally, but logs at ERROR level first.
+
+**Example:**
+
+```
+E Sequel -- SQLite3::SQLException: no such table: accounts: SELECT NULL AS 'nil' FROM `accounts` LIMIT 1
+```
+
+**Solutions:**
+
+**1. Suppress logger during migrations (cleanest):**
+
+```ruby
+def run_migrations
+  # Temporarily suppress Sequel's logger
+  original_loggers = DB.loggers.dup
+  DB.loggers.clear
+
+  Sequel::Migrator.run(DB, 'db/migrate', use_transactions: true)
+ensure
+  DB.loggers.clear
+  original_loggers.each { |logger| DB.loggers << logger }
+end
+```
+
+**2. table_guard automatically suppresses** during its table existence checks
+
+**3. Add explanatory log message:**
+
+```ruby
+logger.info "Running migrations (expected 'no such table' errors may appear below)"
+Sequel::Migrator.run(DB, 'db/migrate', use_transactions: true)
+```
+
+**Note:** table_guard automatically handles this for its own checks. For migration runner code, use option 1 or 3 above.
+
 ### Problem: "table already exists" error from migration
 
 **Cause:** Migration uses `create_table` (not `create_table?`) and table exists

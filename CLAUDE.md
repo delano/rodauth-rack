@@ -85,6 +85,8 @@ end
 
 ### Table Guard Implementation Details
 
+**Logger Suppression:** The `table_exists?` method temporarily suppresses Sequel's logger during table existence checks. This prevents confusing ERROR logs from Sequel when checking non-existent tables (Sequel's `table_exists?` attempts a SELECT and logs the exception before catching it).
+
 **Configuration Storage:** Uses instance variables set by `auth_value_method`:
 
 - Block configs stored as Procs in `@table_guard_mode`
