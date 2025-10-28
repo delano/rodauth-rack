@@ -1,6 +1,0 @@
-def otp_disabled(name, account_id)
-  @rodauth = rodauth(name, account_id)
-  @account = @rodauth.rails_account
-
-  mail subject: @rodauth.email_subject_prefix + @rodauth.otp_disabled_email_subject
-end

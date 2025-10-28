@@ -520,7 +520,7 @@ end
 
 ## Lifecycle Hooks
 
-### before(name)` / `after(name)` - Define lifecycle hook for feature action
+### `before(name)` / `after(name)` - Define lifecycle hook for feature action
 
 For **feature developers**: Creates two methods:
 
@@ -587,7 +587,7 @@ depends :otp, :email_base
 
 When an **application developer** enables this feature, in this case `:otp_modify_email`, the `:otp` and `:email_base` are automatically enabled first.
 
-### internal_request_method(name)` - Expose method for internal requests
+### `internal_request_method(name)` - Expose method for internal requests
 
 For **feature developers**: Registers a method to be exposed for internal/programmatic use (without HTTP requests). Defaults to feature name if `name` not provided.
 
@@ -606,7 +606,7 @@ app.rodauth.valid_login_and_password?(login: 'user@example.com', password: 'secr
 
 **Without this declaration**: Methods only work via HTTP requests, no programmatic API is available.
 
-### loaded_templates(array)` - Declare required templates
+### `loaded_templates(array)` - Declare required templates
 
 For **feature developers**: Lists template files this feature uses. Used for template precompilation and validation.
 

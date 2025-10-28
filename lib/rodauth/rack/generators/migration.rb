@@ -5,10 +5,10 @@ require "erb"
 module Rodauth
   module Rack
     module Generators
-      # Framework-agnostic migration generator for Rodauth database tables.
+      # Sequel migration generator for Rodauth database tables.
       #
-      # Generates migrations for both ActiveRecord and Sequel ORMs, supporting
-      # PostgreSQL, MySQL, and SQLite3 databases.
+      # Generates migrations for Sequel ORM, supporting
+      # PostgreSQL, MySQL, and SQLite databases.
       #
       # @example Generate a migration
       #   generator = Rodauth::Rack::Generators::Migration.new(
@@ -70,7 +70,7 @@ module Rodauth
         # Initialize the migration generator
         #
         # @param features [Array<Symbol>] List of Rodauth features to generate tables for
-        # @param orm [Symbol] ORM to use (:active_record or :sequel)
+        # @param orm [Symbol] ORM to use (only :sequel is supported)
         # @param prefix [String] Table name prefix (default: "account")
         # @param db_adapter [Symbol] Database adapter (:postgresql, :mysql2, :sqlite3)
         # @param db [Sequel::Database] Sequel database connection (for Sequel ORM only)
@@ -135,9 +135,9 @@ module Rodauth
         end
 
         def validate_orm!
-          return if %i[active_record sequel].include?(orm)
+          return if orm == :sequel
 
-          raise ArgumentError, "Invalid ORM: #{orm}. Must be :active_record or :sequel"
+          raise ArgumentError, "Only Sequel ORM is supported. Got: #{orm}"
         end
 
         def create_mock_db

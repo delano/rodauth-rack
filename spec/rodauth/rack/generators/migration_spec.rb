@@ -19,9 +19,9 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
       expect(generator.orm).to eq(:sequel)
     end
 
-    it "accepts custom ORM" do
-      generator = described_class.new(features: [:base], orm: :active_record)
-      expect(generator.orm).to eq(:active_record)
+    it "only supports Sequel ORM" do
+      generator = described_class.new(features: [:base], orm: :sequel)
+      expect(generator.orm).to eq(:sequel)
     end
 
     it "accepts custom prefix" do
@@ -40,10 +40,10 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
       end.to raise_error(ArgumentError, /No features specified/)
     end
 
-    it "raises error for invalid ORM" do
+    it "raises error for unsupported ORM" do
       expect do
-        described_class.new(features: [:base], orm: :mongoid)
-      end.to raise_error(ArgumentError, /Invalid ORM/)
+        described_class.new(features: [:base], orm: :active_record)
+      end.to raise_error(ArgumentError, /Only Sequel ORM is supported/)
     end
   end
 
@@ -115,91 +115,36 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
   end
 
   describe "#generate" do
-    context "with Sequel ORM" do
-      it "generates migration for base feature" do
-        generator = described_class.new(features: [:base], orm: :sequel)
-        migration = generator.generate
+    it "generates migration for base feature" do
+      generator = described_class.new(features: [:base], orm: :sequel)
+      migration = generator.generate
 
-        expect(migration).to include("create_table :accounts")
-        expect(migration).to include("primary_key :id")
-        expect(migration).to include("Integer :status")
-        expect(migration).to include("String :password_hash")
-      end
-
-      it "generates migration for verify_account feature" do
-        generator = described_class.new(features: [:verify_account], orm: :sequel)
-        migration = generator.generate
-
-        expect(migration).to include("create_table :account_verification_keys")
-      end
-
-      it "generates migration for multiple features" do
-        generator = described_class.new(features: %i[base remember], orm: :sequel)
-        migration = generator.generate
-
-        expect(migration).to include("create_table :accounts")
-        expect(migration).to include("create_table :account_remember_keys")
-      end
-
-      it "uses custom table prefix" do
-        generator = described_class.new(features: [:base], orm: :sequel, prefix: "user")
-        migration = generator.generate
-
-        expect(migration).to include("create_table :users")
-      end
+      expect(migration).to include("create_table :accounts")
+      expect(migration).to include("primary_key :id")
+      expect(migration).to include("Integer :status")
+      expect(migration).to include("String :password_hash")
     end
 
-    context "with ActiveRecord ORM" do
-      it "generates migration for base feature" do
-        generator = described_class.new(features: [:base], orm: :active_record)
-        migration = generator.generate
+    it "generates migration for verify_account feature" do
+      generator = described_class.new(features: [:verify_account], orm: :sequel)
+      migration = generator.generate
 
-        expect(migration).to include("create_table :accounts")
-        expect(migration).to include("t.integer :status")
-        expect(migration).to include("t.string :password_hash")
-      end
+      expect(migration).to include("create_table :account_verification_keys")
+    end
 
-      it "generates migration for verify_account feature" do
-        generator = described_class.new(features: [:verify_account], orm: :active_record)
-        migration = generator.generate
+    it "generates migration for multiple features" do
+      generator = described_class.new(features: %i[base remember], orm: :sequel)
+      migration = generator.generate
 
-        expect(migration).to include("create_table :account_verification_keys")
-      end
+      expect(migration).to include("create_table :accounts")
+      expect(migration).to include("create_table :account_remember_keys")
+    end
 
-      it "generates migration with PostgreSQL adapter" do
-        generator = described_class.new(
-          features: [:base],
-          orm: :active_record,
-          db_adapter: :postgresql
-        )
-        migration = generator.generate
+    it "uses custom table prefix" do
+      generator = described_class.new(features: [:base], orm: :sequel, prefix: "user")
+      migration = generator.generate
 
-        expect(migration).to include('enable_extension "citext"')
-        expect(migration).to include("t.citext :email")
-      end
-
-      it "generates migration with MySQL adapter" do
-        generator = described_class.new(
-          features: [:base],
-          orm: :active_record,
-          db_adapter: :mysql2
-        )
-        migration = generator.generate
-
-        expect(migration).to include("t.string :email")
-        expect(migration).not_to include("citext")
-      end
-
-      it "generates migration with SQLite adapter" do
-        generator = described_class.new(
-          features: [:base],
-          orm: :active_record,
-          db_adapter: :sqlite3
-        )
-        migration = generator.generate
-
-        expect(migration).to include("t.string :email")
-      end
+      expect(migration).to include("create_table :users")
     end
 
     context "with invalid features" do
@@ -222,15 +167,7 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
       ]
     end
 
-    it "has templates for all 19 features in ActiveRecord" do
-      all_features.each do |feature|
-        expect do
-          described_class.new(features: [feature], orm: :active_record)
-        end.not_to raise_error
-      end
-    end
-
-    it "has templates for all 19 features in Sequel" do
+    it "has Sequel templates for all 19 features" do
       all_features.each do |feature|
         expect do
           described_class.new(features: [feature], orm: :sequel)
