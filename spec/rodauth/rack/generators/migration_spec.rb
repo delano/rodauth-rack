@@ -14,15 +14,6 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
       expect(generator.features).to eq(%i[base otp])
     end
 
-    it "defaults to sequel ORM" do
-      generator = described_class.new(features: [:base])
-      expect(generator.orm).to eq(:sequel)
-    end
-
-    it "only supports Sequel ORM" do
-      generator = described_class.new(features: [:base], orm: :sequel)
-      expect(generator.orm).to eq(:sequel)
-    end
 
     it "accepts custom prefix" do
       generator = described_class.new(features: [:base], prefix: "user")
@@ -40,61 +31,6 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
       end.to raise_error(ArgumentError, /No features specified/)
     end
 
-    it "raises error for unsupported ORM" do
-      expect do
-        described_class.new(features: [:base], orm: :active_record)
-      end.to raise_error(ArgumentError, /Only Sequel ORM is supported/)
-    end
-  end
-
-  describe "#configuration" do
-    it "returns configuration for base feature" do
-      generator = described_class.new(features: [:base], prefix: "account")
-      config = generator.configuration
-
-      expect(config).to eq(accounts_table: "accounts")
-    end
-
-    it "returns configuration for multiple features" do
-      generator = described_class.new(features: %i[base remember], prefix: "account")
-      config = generator.configuration
-
-      expect(config).to include(
-        accounts_table: "accounts",
-        remember_table: "account_remember_keys"
-      )
-    end
-
-    it "handles custom table prefix" do
-      generator = described_class.new(features: %i[base otp], prefix: "user")
-      config = generator.configuration
-
-      expect(config).to include(
-        accounts_table: "users",
-        otp_keys_table: "user_otp_keys"
-      )
-    end
-
-    it "includes all configuration for webauthn feature" do
-      generator = described_class.new(features: [:webauthn], prefix: "account")
-      config = generator.configuration
-
-      expect(config).to include(
-        webauthn_keys_table: "account_webauthn_keys",
-        webauthn_user_ids_table: "account_webauthn_user_ids",
-        webauthn_keys_account_id_column: "account_id"
-      )
-    end
-
-    it "includes all configuration for lockout feature" do
-      generator = described_class.new(features: [:lockout], prefix: "account")
-      config = generator.configuration
-
-      expect(config).to include(
-        account_login_failures_table: "account_login_failures",
-        account_lockouts_table: "account_lockouts"
-      )
-    end
   end
 
   describe "#migration_name" do
@@ -116,7 +52,7 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
 
   describe "#generate" do
     it "generates migration for base feature" do
-      generator = described_class.new(features: [:base], orm: :sequel)
+      generator = described_class.new(features: [:base])
       migration = generator.generate
 
       expect(migration).to include("create_table :accounts")
@@ -126,14 +62,14 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
     end
 
     it "generates migration for verify_account feature" do
-      generator = described_class.new(features: [:verify_account], orm: :sequel)
+      generator = described_class.new(features: [:verify_account])
       migration = generator.generate
 
       expect(migration).to include("create_table :account_verification_keys")
     end
 
     it "generates migration for multiple features" do
-      generator = described_class.new(features: %i[base remember], orm: :sequel)
+      generator = described_class.new(features: %i[base remember])
       migration = generator.generate
 
       expect(migration).to include("create_table :accounts")
@@ -141,7 +77,7 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
     end
 
     it "uses custom table prefix" do
-      generator = described_class.new(features: [:base], orm: :sequel, prefix: "user")
+      generator = described_class.new(features: [:base], prefix: "user")
       migration = generator.generate
 
       expect(migration).to include("create_table :users")
@@ -170,15 +106,16 @@ RSpec.describe Rodauth::Rack::Generators::Migration do
     it "has Sequel templates for all 19 features" do
       all_features.each do |feature|
         expect do
-          described_class.new(features: [feature], orm: :sequel)
+          described_class.new(features: [feature])
         end.not_to raise_error
       end
     end
 
-    it "has configuration for all features" do
+    it "generates migrations for all features" do
       all_features.each do |feature|
         generator = described_class.new(features: [feature])
-        expect(generator.configuration).not_to be_empty
+        migration = generator.generate
+        expect(migration).not_to be_empty
       end
     end
   end
