@@ -1,11 +1,10 @@
 # frozen_string_literal: true
+# lib/rodauth/features/table_guard.rb
 
 # Ensure dependencies are loaded (they should be via require 'rodauth/rack')
 require_relative "../table_inspector" unless defined?(Rodauth::TableInspector)
 require_relative "../sequel_generator" unless defined?(Rodauth::SequelGenerator)
 
-#
-# Place this file at: lib/rodauth/features/table_guard.rb
 #
 # Enable with:
 #   enable :table_guard
@@ -14,6 +13,10 @@ require_relative "../sequel_generator" unless defined?(Rodauth::SequelGenerator)
 #   table_guard_mode :warn    # :warn, :error, :silent, :skip, :raise, :halt/:exit, or block
 #   table_guard_sequel_mode :log    # :log, :migration, :create, :sync
 #   table_guard_skip_tables [:some_table]  # Skip checking specific tables
+#
+# Logging:
+#   def logger; MyLogger; end              # Standard Rodauth logger (recommended)
+#   table_guard_logger MyLogger            # Feature-specific logger (alternative)
 #
 # Example modes:
 #
@@ -56,6 +59,8 @@ module Rodauth
     auth_value_method :table_guard_skip_tables, []
     auth_value_method :table_guard_check_columns?, true
     auth_value_method :table_guard_migration_path, "db/migrate"
+    auth_value_method :table_guard_logger, nil
+    auth_value_method :table_guard_logger_name, nil  # For SemanticLogger integration
 
     # Public API methods
     auth_methods(
@@ -99,9 +104,7 @@ module Rodauth
     #
     # Returns true unless mode is :skip, :silent, or nil
     def should_check_tables?
-      return false unless instance_variable_defined?(:@table_guard_mode)
-
-      mode_value = instance_variable_get(:@table_guard_mode)
+      mode_value = table_guard_mode
 
       # Always check if mode is a Proc (custom handler)
       return true if mode_value.is_a?(Proc)
@@ -118,7 +121,7 @@ module Rodauth
     # @return [Hash<Symbol, Hash>] Table configuration
     def _table_configuration
       config = Rodauth::TableInspector.table_information(self)
-      rodauth_debug("TableGuard: Discovered #{config.size} required tables") if ENV['RODAUTH_DEBUG']
+      rodauth_debug("[table_guard] Discovered #{config.size} required tables") if ENV['RODAUTH_DEBUG']
       config
     end
 
@@ -129,7 +132,12 @@ module Rodauth
       missing = missing_tables
 
       if missing.empty?
-        rodauth_debug("TableGuard: All required tables exist") if ENV['RODAUTH_DEBUG']
+        rodauth_info('')
+        rodauth_info("─" * 70)
+        rodauth_info("✅ TableGuard: All required tables exist")
+        rodauth_info("   #{table_configuration.size} tables validated successfully")
+        rodauth_info("─" * 70)
+        rodauth_info('')
         return
       end
 
@@ -178,7 +186,7 @@ module Rodauth
 
       db.table_exists?(table_name)
     rescue StandardError => e
-      rodauth_warn("TableGuard: Unable to check table existence for #{table_name}: #{e.message}")
+      rodauth_warn("[table_guard] Unable to check table existence for #{table_name}: #{e.message}")
       true # Assume exists to avoid false positives
     end
 
@@ -215,13 +223,14 @@ module Rodauth
 
         case mode
         when :silent, :skip, nil
-          rodauth_debug("TableGuard: Discovered #{@table_configuration.size} tables, skipping validation")
+          rodauth_debug("[table_guard] Discovered #{@table_configuration.size} tables, skipping validation")
 
         when :warn
           rodauth_warn(build_missing_tables_message(missing))
 
         when :error
           rodauth_error(build_missing_tables_error(missing))
+          rodauth_warn(build_migration_hints(missing))
 
         when :raise
           rodauth_error(build_missing_tables_error(missing))
@@ -259,35 +268,67 @@ module Rodauth
 
       case table_guard_sequel_mode
       when :log
-        rodauth_info("TableGuard: Sequel migration code:\n\n#{generator.generate_migration}")
+        rodauth_info("[table_guard] Sequel migration code:\n\n#{generator.generate_migration}")
 
       when :migration
         filename = generate_migration_filename
         FileUtils.mkdir_p(File.dirname(filename))
         File.write(filename, generator.generate_migration)
-        rodauth_info("TableGuard: Generated migration file: #{filename}")
+        rodauth_info("[table_guard] Generated migration file: #{filename}")
 
       when :create
+        rodauth_debug("[table_guard] Creating #{missing.size} table(s)...")
         generator.execute_creates(db)
-        rodauth_info("TableGuard: Created #{missing.size} table(s)")
+        rodauth_info("[table_guard] Created #{missing.size} table(s)")
+
+        # Re-validate to show success message
+        revalidate_after_creation
 
       when :sync
         unless %w[dev development test].any? { |env| ENV['RACK_ENV']&.start_with?(env) }
-          rodauth_error("TableGuard: Sync mode only available in dev/test environments (current: #{ENV['RACK_ENV']})")
+          rodauth_error("[table_guard] Sync mode only available in dev/test environments (current: #{ENV['RACK_ENV']})")
           return
         end
 
         # Drop and recreate
+        rodauth_info("[table_guard] Syncing #{missing.size} table(s)...")
         generator.execute_drops(db)
         generator.execute_creates(db)
-        rodauth_info("TableGuard: Synced #{missing.size} table(s) (dropped and recreated)")
+        rodauth_info("[table_guard] Synced #{missing.size} table(s) (dropped and recreated)")
+
+        # Re-validate to show success message
+        revalidate_after_creation
 
       else
-        rodauth_error("TableGuard: Invalid sequel mode: #{table_guard_sequel_mode.inspect}")
+        rodauth_error("[table_guard] Invalid sequel mode: #{table_guard_sequel_mode.inspect}")
       end
     rescue StandardError => e
-      rodauth_error("TableGuard: Sequel generation failed: #{e.class} - #{e.message}")
+      rodauth_error("[table_guard] Sequel generation failed: #{e.class} - #{e.message}")
+      rodauth_error("  Location: #{e.backtrace.first}")
       raise if [:raise, :halt, :exit].include?(table_guard_mode)
+    end
+
+    # Re-validate tables after creation to show success message
+    #
+    # This runs the validation again after tables are created,
+    # which will display the success message instead of leaving
+    # the error/warning messages as the last output
+    def revalidate_after_creation
+      rodauth_info("")  # Blank line for readability
+
+      still_missing = missing_tables
+
+      if still_missing.empty?
+        rodauth_info("=" * 70)
+        rodauth_info("✓ [table_guard] All required tables now exist")
+        rodauth_info("  #{table_configuration.size} tables validated successfully")
+        rodauth_info("=" * 70)
+      else
+        rodauth_error("[table_guard] Still missing #{still_missing.size} table(s) after creation!")
+        still_missing.each do |info|
+          rodauth_error("  - #{info[:table]} (#{info[:feature]})")
+        end
+      end
     end
 
     # Generate migration filename with timestamp
@@ -304,7 +345,7 @@ module Rodauth
     # @param missing [Array<Hash>] Missing table information
     # @return [String] Formatted message
     def build_missing_tables_message(missing)
-      lines = ["Rodauth TableGuard: Missing required database tables!"]
+      lines = ["Rodauth [table_guard] Missing required database tables!"]
       lines << ""
 
       missing.each do |info|
@@ -331,48 +372,95 @@ module Rodauth
     # @param missing [Array<Hash>] Missing table information
     # @return [String] Formatted hints
     def build_migration_hints(missing)
-      hints = ["Migration hints:"]
+      hints = []
+      hints << ""
+      hints << "⚠️  DATABASE OPERATIONS WILL FAIL UNTIL TABLES ARE CREATED"
       hints << ""
 
       unique_tables = missing.map { |i| i[:table] }.uniq
 
-      hints << "Run migrations for these tables:"
+      if table_guard_sequel_mode.nil?
+        hints << "Quick fix for development (creates tables automatically):"
+        hints << "  table_guard_sequel_mode :create"
+        hints << ""
+        hints << "Other options:"
+        hints << "  table_guard_sequel_mode :log        # Show migration code"
+        hints << "  table_guard_sequel_mode :migration  # Generate migration file"
+        hints << ""
+      end
+
+      hints << "Required tables:"
       unique_tables.each do |table|
         hints << "  - #{table}"
       end
 
-      if table_guard_sequel_mode.nil?
-        hints << ""
-        hints << "Or enable automatic Sequel generation:"
-        hints << "  table_guard_sequel_mode :log        # Log to console"
-        hints << "  table_guard_sequel_mode :migration  # Generate migration file"
-        hints << "  table_guard_sequel_mode :create     # Create tables now"
-      end
-
       hints << ""
-      hints << "Or disable table checking:"
-      hints << "  table_guard_mode :silent"
-
-      hints << ""
-      hints << "Or skip specific tables:"
-      hints << "  table_guard_skip_tables #{unique_tables.inspect}"
+      hints << "To disable checking: table_guard_mode :silent"
+      hints << "To skip specific tables: table_guard_skip_tables #{unique_tables.inspect}"
 
       hints.join("\n")
     end
 
+    # Get logger instance with fallback chain
+    #
+    # Checks in order:
+    # 1. table_guard_logger (feature-specific logger instance)
+    # 2. SemanticLogger[table_guard_logger_name] (if name provided)
+    # 3. logger (Rodauth instance method if defined by user)
+    # 4. scope.logger (Roda app logger if available)
+    # 5. nil (no logger available)
+    #
+    # For SemanticLogger integration, use table_guard_logger_name instead of
+    # table_guard_logger to ensure level configuration is preserved:
+    #
+    #   table_guard_logger_name 'rodauth'  # Looks up SemanticLogger['rodauth']
+    #
+    # Note: SemanticLogger[] creates a new logger instance each time it's called.
+    # If you configure logger levels via YAML or code, use table_guard_logger_name
+    # so the feature can look up the logger at runtime and get the configured instance.
+    def get_logger
+      result = table_guard_logger
+
+      # If no direct logger but name provided, look up SemanticLogger
+      if !result && table_guard_logger_name && defined?(SemanticLogger)
+        result = SemanticLogger[table_guard_logger_name]
+      end
+
+      # Fallback chain if still no logger
+      result ||= (respond_to?(:logger) ? logger : nil) ||
+                 (respond_to?(:scope) && scope.respond_to?(:logger) ? scope.logger : nil)
+
+      # Warn once if logger appears to be SemanticLogger but has no appenders
+      if result && result.class.name&.include?('SemanticLogger') &&
+         defined?(SemanticLogger) && SemanticLogger.appenders.empty?
+        warn "[table_guard] WARNING: SemanticLogger has no appenders configured. " \
+             "Add: SemanticLogger.add_appender(io: STDOUT, level: :info)"
+      end
+
+      result
+    end
+
     # Debug logging helper
     def rodauth_debug(msg)
-      return unless respond_to?(:logger)
+      logger = get_logger
+      return unless logger
 
-      logger.debug(msg) if logger.respond_to?(:debug)
+      if logger.respond_to?(:debug)
+        logger.debug(msg)
+      elsif ENV['RODAUTH_DEBUG']
+        warn "[DEBUG] #{msg}"
+      end
     end
 
     # Info logging helper
     def rodauth_info(msg)
-      return unless respond_to?(:logger)
+      logger = get_logger
 
-      if logger.respond_to?(:info)
+      if logger&.respond_to?(:info)
         logger.info(msg)
+      elsif logger&.respond_to?(:<<)
+        # Support loggers that only have << method
+        logger << "#{msg}\n"
       else
         puts msg
       end
@@ -380,10 +468,12 @@ module Rodauth
 
     # Warn logging helper
     def rodauth_warn(msg)
-      return unless respond_to?(:logger)
+      logger = get_logger
 
-      if logger.respond_to?(:warn)
+      if logger&.respond_to?(:warn)
         logger.warn(msg)
+      elsif logger&.respond_to?(:<<)
+        logger << "[WARN] #{msg}\n"
       else
         warn msg
       end
@@ -391,10 +481,12 @@ module Rodauth
 
     # Error logging helper
     def rodauth_error(msg)
-      return unless respond_to?(:logger)
+      logger = get_logger
 
-      if logger.respond_to?(:error)
+      if logger&.respond_to?(:error)
         logger.error(msg)
+      elsif logger&.respond_to?(:<<)
+        logger << "[ERROR] #{msg}\n"
       else
         warn "[ERROR] #{msg}"
       end

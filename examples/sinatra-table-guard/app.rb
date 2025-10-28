@@ -39,7 +39,7 @@ class RodauthApp < Roda
 
   plugin :rodauth do
     # Enable features for demonstration
-    enable :login, :logout, :create_account, :verify_account, :otp
+    enable :login, :logout, :create_account, :verify_account
     enable :table_guard
 
     # Database
@@ -48,8 +48,9 @@ class RodauthApp < Roda
     # Table guard configuration - try different modes!
     # Uncomment the mode you want to test:
 
-    # Mode 1: Warn about missing tables (default for demo)
+    # Mode 1: Error with helpful hints (default for demo)
     table_guard_mode :error
+    table_guard_sequel_mode :create  # Auto-create missing tables
 
     # Mode 2: Error log but continue
     # table_guard_mode :error
@@ -81,10 +82,14 @@ class RodauthApp < Roda
     #   :continue # Don't raise
     # end
 
-    # Logging
-    def self.logger
+    # Logging - application developers can use either approach:
+    # Option 1: Standard Rodauth logger method (recommended - used by other features too)
+    def logger
       LOGGER
     end
+
+    # Option 2: Feature-specific logger (if you need different logger just for table_guard)
+    # table_guard_logger LOGGER
 
     # Configuration
     accounts_table :accounts

@@ -93,7 +93,11 @@ module Rodauth
         method_name = table_info[:method]
 
         structure = TableInspector.infer_table_structure(method_name, table_name)
-        create_table_directly(db, table_name, structure)
+        begin
+          create_table_directly(db, table_name, structure)
+        rescue => e
+          raise "Failed to create table #{table_name}: #{e.class} - #{e.message}\n  #{e.backtrace.first(3).join("\n  ")}"
+        end
       end
     end
 
@@ -156,102 +160,90 @@ module Rodauth
     # @param table_name [String, Symbol] Table name
     # @param structure [Hash] Table structure metadata
     def create_table_directly(db, table_name, structure)
+      # Capture all helper values before entering block context
+      is_postgres = postgres?
+      accts_table = accounts_table_name
+      pk = structure[:primary_key]
+      struct_type = structure[:type]
+
       db.create_table(table_name.to_sym) do
         # Primary key
-        if structure[:primary_key]
-          primary_key structure[:primary_key], type: :Bignum
-        end
+        primary_key pk, type: :Bignum if pk
 
-        # Columns
+        # Columns - inline logic to avoid block context issues
         structure[:columns]&.each do |column|
-          next if column == structure[:primary_key]
+          next if column == pk
 
-          add_column_to_table(self, column, table_name, structure)
+          begin
+            case column
+            when :account_id
+              if struct_type == :feature
+                foreign_key :account_id, accts_table, type: :Bignum, null: false
+              else
+                Integer :account_id, null: false
+              end
+            when :email
+              if is_postgres
+                citext :email, null: false
+              else
+                String :email, null: false
+              end
+            when :password_hash
+              String :password_hash
+            when :status_id
+              Integer :status_id, null: false, default: 1
+            when :status
+              Integer :status, null: false, default: 1
+            when :key
+              String :key, null: false
+            when :deadline
+              DateTime :deadline, null: false
+            when :requested_at
+              DateTime :requested_at, null: false, default: Sequel::CURRENT_TIMESTAMP
+            when :created_at
+              DateTime :created_at, null: false, default: Sequel::CURRENT_TIMESTAMP
+            when :updated_at
+              DateTime :updated_at, null: false, default: Sequel::CURRENT_TIMESTAMP
+            when :last_use, :last_activity_at, :last_login_at
+              Time column, null: false, default: Sequel::CURRENT_TIMESTAMP
+            when :num_failures, :number, :sign_count
+              Integer column, null: false, default: 0
+            when :code
+              String :code, null: false
+            when :phone_number, :login
+              String column, null: false
+            when :code_issued_at, :changed_at, :expired_at, :at, :email_last_sent
+              DateTime column
+            when :public_key, :metadata
+              String column, text: true
+            when :webauthn_id, :session_id
+              String column, null: false
+            when :message
+              String :message, null: false
+            else
+              String column
+            end
+          rescue => e
+            raise "Failed adding column #{column}: #{e.class} - #{e.message}"
+          end
         end
 
-        # Indexes
+        # Indexes - inline logic
         structure[:indexes]&.each do |index_columns|
-          add_index_to_table(self, index_columns, structure, db)
+          if index_columns == [:email] && struct_type == :primary
+            # For accounts table email, use unique index
+            # Partial index with status filter would be nice but causes cross-DB issues
+            index :email, unique: true
+          elsif index_columns.length == 1
+            index index_columns.first
+          else
+            index index_columns
+          end
         end
       end
     end
 
     private
-
-    # Add a column to the table being created
-    #
-    # @param table_def [Sequel::Schema::CreateTableGenerator] Table generator
-    # @param column [Symbol] Column name
-    # @param table_name [String, Symbol] Table name
-    # @param structure [Hash] Table structure
-    def add_column_to_table(table_def, column, table_name, structure)
-      case column
-      when :account_id
-        if structure[:type] == :feature
-          table_def.foreign_key :account_id, accounts_table_name, type: :Bignum, null: false
-        else
-          table_def.Integer :account_id, null: false
-        end
-      when :email
-        if postgres?
-          table_def.citext :email, null: false
-        else
-          table_def.String :email, null: false
-        end
-      when :password_hash
-        table_def.String :password_hash
-      when :status_id, :status
-        table_def.Integer :status, null: false, default: 1
-      when :key
-        table_def.String :key, null: false
-      when :deadline
-        table_def.DateTime :deadline, null: false
-      when :requested_at
-        table_def.DateTime :requested_at, null: false, default: Sequel::CURRENT_TIMESTAMP
-      when :created_at
-        table_def.DateTime :created_at, null: false, default: Sequel::CURRENT_TIMESTAMP
-      when :updated_at
-        table_def.DateTime :updated_at, null: false, default: Sequel::CURRENT_TIMESTAMP
-      when :last_use, :last_activity_at, :last_login_at
-        table_def.Time column, null: false, default: Sequel::CURRENT_TIMESTAMP
-      when :num_failures, :number, :sign_count
-        table_def.Integer column, null: false, default: 0
-      when :code
-        table_def.String :code, null: false
-      when :phone_number, :login
-        table_def.String column, null: false
-      when :code_issued_at, :changed_at, :expired_at, :at, :email_last_sent
-        table_def.DateTime column
-      when :public_key, :metadata
-        table_def.String column, text: true
-      when :webauthn_id, :session_id
-        table_def.String column, null: false
-      when :message
-        table_def.String :message, null: false
-      else
-        table_def.String column
-      end
-    end
-
-    # Add an index to the table being created
-    #
-    # @param table_def [Sequel::Schema::CreateTableGenerator] Table generator
-    # @param columns [Array<Symbol>] Index columns
-    # @param structure [Hash] Table structure
-    # @param db [Sequel::Database] Database connection
-    def add_index_to_table(table_def, columns, structure, db)
-      if columns == [:email] && structure[:type] == :primary
-        if db.supports_partial_indexes?
-          table_def.index :email, unique: true, where: { status: [1, 2] }
-        else
-          table_def.index :email, unique: true
-        end
-      elsif columns.length == 1
-        table_def.index columns.first
-      else
-        table_def.index columns
-      end
-    end
 
     # Order tables by dependency (accounts table first, then feature tables)
     def order_tables_by_dependency
