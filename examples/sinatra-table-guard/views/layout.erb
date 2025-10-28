@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Rodauth table_guard Demo</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+    h1 { color: #333; }
+    .flash { padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .notice { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+    .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    .form-group { margin: 15px 0; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input[type="text"], input[type="password"], input[type="email"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    input[type="submit"], button {
+      background: #0066cc;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    input[type="submit"]:hover, button:hover {
+      background: #0052a3;
+    }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .nav { margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Rodauth table_guard Demo</h1>
+
+  <div class="nav">
+    <% if defined?(rodauth) && rodauth.logged_in? %>
+      Logged in as User #<%= rodauth.account_id %> |
+      <a href="/logout">Logout</a>
+    <% else %>
+      <a href="/login">Login</a> |
+      <a href="/create-account">Create Account</a>
+    <% end %>
+    | <a href="/">Home</a>
+  </div>
+
+  <% if flash[:notice] %>
+    <div class="flash notice"><%= flash[:notice] %></div>
+  <% end %>
+
+  <% if flash[:error] %>
+    <div class="flash error"><%= flash[:error] %></div>
+  <% end %>
+
+  <%= yield %>
+</body>
+</html>

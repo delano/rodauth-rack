@@ -1,0 +1,6 @@
+# Demo database
+*.db
+*.db-journal
+
+# Generated migrations
+db/migrate/
