@@ -210,54 +210,170 @@ end
 
 ## Session & Flash Configuration
 
-### `session_key(meth, value)`- Define session key with conversion
+### `session_key(meth, value)` - Define session key store authentication state server-side
+
+**For feature developers**: Defines a method that returns the session hash key name for storing this feature's data.
 
 ```ruby
+# From lib/rodauth/features/email_auth.rb
 session_key :email_auth_session_key, :email_auth_key
+# Creates method: email_auth_session_key() → :email_auth_key
+# Usage in feature code: session[email_auth_session_key] = token_value
 ```
 
-### `flash_key(meth, value)`- Define flash key with normalization
+**For application developers**: The actual session key used can be customized via `session_key_prefix`:
+
+```ruby
+rodauth do
+  enable :email_auth
+  session_key_prefix 'rodauth_'
+  # Now session keys become: :rodauth_email_auth_key
+  # Prevents conflicts with other session keys in your app
+end
+```
+
+Session keys work identically in HTML and JSON modes - authentication state is stored server-side regardless of response format.
+
+### `flash_key(meth, value)` - Define flash key with normalization
+
+For **feature developers**: Creates a method that normalizes flash message keys.
 
 ```ruby
 flash_key :flash_error_key, :error
 ```
 
+**JSON mode**: Flash methods (`set_notice_flash`, `set_error_flash`) write to `json_response` hash instead of session flash when `use_json?` is true.
+
 ## View Configuration
 
-### `view(page, title, name)`- Define a view endpoint
+### `view(page, title, name)` - Define a view endpoint
 
-- Creates `#{name}_view` method
-- Auto-generates translatable `#{name}_page_title`
+For **feature developers**: Creates a `#{name}_view` method that renders HTML templates and auto-generates a translatable `#{name}_page_title` method.
 
 ```ruby
+# From lib/rodauth/features/change_password.rb
 view 'change-password', 'Change Password'
 ```
 
+**JSON mode**: When `use_json?` returns true, `view()` calls `return_json_response` instead of rendering HTML templates.
+
 ## UI Elements
 
-### `notice_flash(value, name)`- Success message (translatable)
+UI element methods are **HTML-only** - they have no effect in JSON mode.
+
+Flash Messages
+
+**Flash** = temporary session-stored messages displayed to **end users** on the next page load (success/error notifications).
+
+### `notice_flash(value, name)` - Success message (translatable)
+
+For **feature developers**: Defines the success message text shown after successful operations.
 
 ```ruby
+# From lib/rodauth/features/logout.rb
 notice_flash "You have been logged out"
+# Displayed as: <div id='notice_flash'>You have been logged out</div>
 ```
 
-### `error_flash(value, name)`- Error message (translatable)
+### `error_flash(value, name)` - Error message (translatable)
+
+For **feature developers**: Defines the error message text shown when operations fail.
 
 ```ruby
+# From lib/rodauth/features/change_password.rb
 error_flash 'There was an error changing your password'
+# Displayed as: <div id='error_flash'>There was an error changing your password</div>
 ```
 
-### `button(value, name)`- Button text (translatable)
+### Buttons
+
+**Button** = HTML submit button rendered in authentication forms.
+
+### `button(value, name)` - Button text (translatable)
+
+For **feature developers**: Convenience macro that creates a `#{name}_button` method returning the button text. Templates must explicitly call this method to render the button.
 
 ```ruby
+# From lib/rodauth/features/logout.rb
 button 'Logout'
+# Creates method: logout_button() → 'Logout'
+# Template usage: rodauth.button(rodauth.logout_button, :class=>'btn btn-warning')
+# Renders as: <input type="submit" class="btn btn-primary" value="Logout"/>
 ```
 
-### `additional_form_tags(name)`- Extra form tag content
+**For application developers**: Customize button appearance via `button_class` configuration option.
+
+### Form Tags
+
+**Additional form tags** = extra HTML inserted at the top of forms (hidden fields, CSRF tokens, custom markup).
+
+### `additional_form_tags(name)` - Extra form tag content
+
+For **feature developers**: Declares that this feature supports additional form content injection.
 
 ```ruby
 additional_form_tags
+# Creates configurable method: logout_additional_form_tags
 ```
+
+**For application developers**: Add custom HTML to forms:
+
+```ruby
+rodauth do
+  enable :logout
+  logout_additional_form_tags '<input type="hidden" name="source" value="app"/>'
+end
+```
+
+## Template Configuration
+
+Templates define the HTML structure for authentication pages. They work in two layers:
+
+1. **Built-in templates**: Located in Rodauth's `templates/` directory (e.g., `templates/logout.str`)
+2. **Custom templates**: **Application developers** override by placing templates in their app's view directory
+
+### For Feature Developers
+
+Declare which templates your feature uses and how they're rendered:
+
+```ruby
+# From lib/rodauth/features/logout.rb
+loaded_templates %w'logout'
+view 'logout', 'Logout'
+```
+
+- `loaded_templates` - Declares template files for precompilation/validation
+- `view 'logout', 'Logout'` - Creates `logout_view` method that renders `logout.str` template
+- Built-in template location: `templates/logout.str`
+
+Templates have access to the `rodauth` object and call methods created by macros:
+
+```ruby
+# templates/logout.str
+<form method="post">
+  #{rodauth.logout_additional_form_tags}
+  #{rodauth.button(rodauth.logout_button)}
+</form>
+```
+
+### For Application Developers
+
+Customize authentication UI by overriding templates:
+
+1. Rodauth checks your app's view directory first
+2. Falls back to built-in template if not found
+3. Override any template by creating your own version in your views directory
+
+You can customize either:
+
+- **The template** - Override `logout.str` in your views
+- **The configuration** - Override `logout_button { "Sign Out" }` in your Rodauth config
+
+### Rendering Flow
+
+1. **Feature developer** declares: `button 'Logout'` + `loaded_templates %w'logout'`
+2. **Built-in template** (`logout.str`) calls: `rodauth.button(rodauth.logout_button)`
+3. **Application developer** can override template file or button text via configuration
 
 ## JSON API Configuration
 
