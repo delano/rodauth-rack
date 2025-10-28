@@ -134,8 +134,8 @@ module Rodauth
     def check_required_tables!
       missing = missing_tables
 
-      # Special case: :recreate mode always runs, even when no tables are missing
-      if missing.empty? && table_guard_sequel_mode != :recreate
+      # Special case: :recreate and :drop modes always run, even when no tables are missing
+      if missing.empty? && ![:recreate, :drop].include?(table_guard_sequel_mode)
         rodauth_info('')
         rodauth_info("─" * 70)
         rodauth_info("✅ TableGuard: All required tables exist")
@@ -145,8 +145,8 @@ module Rodauth
         return
       end
 
-      # Handle based on validation mode (unless recreate mode which handles its own validation)
-      handle_table_guard_mode(missing) unless table_guard_sequel_mode == :recreate
+      # Handle based on validation mode (unless recreate/drop mode which handles its own validation)
+      handle_table_guard_mode(missing) unless [:recreate, :drop].include?(table_guard_sequel_mode)
 
       # Generate Sequel if configured
       handle_sequel_generation(missing) if table_guard_sequel_mode
@@ -332,6 +332,38 @@ module Rodauth
 
         # Re-validate to show success message
         revalidate_after_creation
+
+        # This is useful when you already have auto migrations that run at start
+        # time. This will drop the tables so that the migrations run every time.
+      when :drop
+        unless %w[dev development test].any? { |env| ENV['RACK_ENV']&.start_with?(env) }
+          rodauth_error("[table_guard] :drop mode only available in dev/test environments (current: #{ENV['RACK_ENV']})")
+          return
+        end
+
+        # Get all required tables from configuration
+        all_tables = table_configuration.map { |_, info| info[:name] }.uniq
+
+        # Drop all existing tables in reverse dependency order
+        rodauth_info("[table_guard] Dropping #{all_tables.size} table(s)...")
+        all_tables.reverse.each do |table_name|
+          if db.table_exists?(table_name)
+            db.drop_table(table_name, cascade: true) rescue db.drop_table(table_name)
+            rodauth_debug("[table_guard] Dropped #{table_name}") if ENV['RODAUTH_DEBUG']
+          end
+        end
+
+        # Drop Sequel migration tracking tables so migrations re-run from scratch
+        [:schema_info, :schema_migrations].each do |tracking_table|
+          if db.table_exists?(tracking_table)
+            db.drop_table(tracking_table)
+            rodauth_debug("[table_guard] Dropped migration tracking table: #{tracking_table}") if ENV['RODAUTH_DEBUG']
+          end
+        end
+
+        rodauth_info("[table_guard] Dropped #{all_tables.size} table(s) and migration tracking")
+        rodauth_info("[table_guard] Migrations will run from scratch on next execution")
+
 
       else
         rodauth_error("[table_guard] Invalid sequel mode: #{table_guard_sequel_mode.inspect}")
