@@ -331,12 +331,7 @@ module Rodauth
 
         # Drop all existing tables in reverse dependency order
         rodauth_info("[table_guard] Recreating #{all_tables.size} table(s) (dropping all, creating fresh)...")
-        all_tables.reverse.each do |table_name|
-          if table_exists?(table_name)
-            db.drop_table(table_name, cascade: true) rescue db.drop_table(table_name)
-            rodauth_debug("[table_guard] Dropped #{table_name}") if ENV['RODAUTH_DEBUG']
-          end
-        end
+        drop_tables(all_tables.reverse)
 
         # Create all tables fresh (uses missing_tables which should now be all of them)
         current_missing = missing_tables
@@ -363,20 +358,10 @@ module Rodauth
 
         # Drop all existing tables in reverse dependency order
         rodauth_info("[table_guard] Dropping #{all_tables.size} table(s)...")
-        all_tables.reverse.each do |table_name|
-          if table_exists?(table_name)
-            db.drop_table(table_name, cascade: true) rescue db.drop_table(table_name)
-            rodauth_debug("[table_guard] Dropped #{table_name}") if ENV['RODAUTH_DEBUG']
-          end
-        end
+        drop_tables(all_tables.reverse)
 
         # Drop Sequel migration tracking tables so migrations re-run from scratch
-        [:schema_info, :schema_migrations].each do |tracking_table|
-          if table_exists?(tracking_table)
-            db.drop_table(tracking_table)
-            rodauth_debug("[table_guard] Dropped migration tracking table: #{tracking_table}") if ENV['RODAUTH_DEBUG']
-          end
-        end
+        drop_tables([:schema_info, :schema_migrations])
 
         rodauth_info("[table_guard] Dropped #{all_tables.size} table(s) and migration tracking")
         rodauth_info("[table_guard] Migrations will run from scratch on next execution")
@@ -389,6 +374,35 @@ module Rodauth
       rodauth_error("[table_guard] Sequel generation failed: #{e.class} - #{e.message}")
       rodauth_error("  Location: #{e.backtrace.first}")
       raise if [:raise, :halt, :exit].include?(table_guard_mode)
+    end
+
+    # Check if the database supports CASCADE on DELETE
+    #
+    # @return [Boolean] True if using a db engine that supports DELETE ... CASCADE
+    def cascade_supported?
+      [:postgres, :mysql].include?(db.database_type)
+    end
+
+    # Drop tables with proper CASCADE handling for non-SQLite databases
+    #
+    # SQLite doesn't support CASCADE on DROP TABLE, so we need to detect
+    # the database type and avoid using it. For other databases, CASCADE
+    # ensures dependent objects are properly cleaned up.
+    #
+    # @param table_names [Array<String, Symbol>] Tables to drop
+    def drop_tables(table_names)
+      table_names.each do |table_name|
+        next unless db.table_exists?(table_name)
+
+        # SQLite: simple drop without CASCADE
+        # PostgreSQL, MySQL: use CASCADE for proper cleanup
+        options = {
+          cascade: cascade_supported?
+        }
+        db.drop_table(table_name, **options)
+
+        rodauth_debug("[table_guard] Dropped #{table_name} (#{options})") if ENV['RODAUTH_DEBUG']
+      end
     end
 
     # Re-validate tables after creation to show success message
