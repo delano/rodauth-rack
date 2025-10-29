@@ -60,8 +60,8 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
   def capture_stdout
     old_stdout = $stdout
     $stdout = StringIO.new
-    yield
-    $stdout.string
+    result = yield
+    [result, $stdout.string]
   ensure
     $stdout = old_stdout
   end
@@ -70,7 +70,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "generates ALTER TABLE statement for missing String column" do
       create_accounts_table_without_external_columns
 
-      output = capture_stdout do
+      _app, output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -92,7 +92,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "generates ALTER TABLE with correct column type for Integer" do
       create_accounts_table_without_external_columns
 
-      output = capture_stdout do
+      _app, output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -111,7 +111,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "generates ALTER TABLE with null constraint" do
       create_accounts_table_without_external_columns
 
-      output = capture_stdout do
+      _app, output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -130,7 +130,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "generates ALTER TABLE with multiple columns" do
       create_accounts_table_without_external_columns
 
-      output = capture_stdout do
+      _app, output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -154,7 +154,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "generates down migration with drop_column statements" do
       create_accounts_table_without_external_columns
 
-      output = capture_stdout do
+      _app, output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -179,7 +179,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
 
       expect(column_exists?(:accounts, :stripe_customer_id)).to be false
 
-      capture_stdout do
+      _app, _output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -205,7 +205,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
 
       expect(column_exists?(:accounts, :github_user_id)).to be false
 
-      capture_stdout do
+      _app, _output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -227,7 +227,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "creates multiple columns at once" do
       create_accounts_table_without_external_columns
 
-      capture_stdout do
+      _app, _output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -250,7 +250,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "can insert and query data in created columns" do
       create_accounts_table_without_external_columns
 
-      app_class = capture_stdout do
+      app_class, _output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -287,7 +287,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
       # Capture migration_dir in local variable
       mig_dir = migration_dir
 
-      capture_stdout do
+      _app, _output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -315,7 +315,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
       # Capture migration_dir in local variable
       mig_dir = migration_dir
 
-      capture_stdout do
+      _app, _output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
@@ -363,7 +363,7 @@ RSpec.describe "Rodauth external_identity :autocreate + table_guard sequel_mode 
     it "works with multiple columns with different constraints" do
       create_accounts_table_without_external_columns
 
-      capture_stdout do
+      _app, _output = capture_stdout do
         create_roda_app do
           enable :table_guard
           enable :external_identity
