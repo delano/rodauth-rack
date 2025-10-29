@@ -18,14 +18,16 @@ module Rodauth
   # @example Generate only CREATE statements
   #   puts generator.generate_create_statements
   class SequelGenerator
-    attr_reader :missing_tables, :rodauth_instance, :db
+    attr_reader :missing_tables, :missing_columns, :rodauth_instance, :db
 
     # Initialize the Sequel generator
     #
     # @param missing_tables [Array<Hash>] Array of missing table info from table_guard
     # @param rodauth_instance [Rodauth::Auth] Rodauth instance for context
-    def initialize(missing_tables, rodauth_instance)
+    # @param missing_columns [Array<Hash>] Array of missing column info from table_guard
+    def initialize(missing_tables, rodauth_instance, missing_columns = [])
       @missing_tables = missing_tables
+      @missing_columns = missing_columns
       @rodauth_instance = rodauth_instance
       @db = rodauth_instance.respond_to?(:db) ? rodauth_instance.db : nil
     end
@@ -35,14 +37,43 @@ module Rodauth
     # @param idempotent [Boolean] Use create_table? for idempotency (default: true)
     # @return [String] Complete Sequel migration code
     def generate_migration(idempotent: true)
-      # Extract unique features from missing tables
-      features_needed = extract_features_from_missing_tables
+      # Generate CREATE TABLE statements for missing tables
+      migration_content = if missing_tables.any?
+                            # Extract unique features from missing tables
+                            features_needed = extract_features_from_missing_tables
 
-      # Use Migration class to generate from ERB templates
-      migration = create_migration_generator(features_needed)
+                            # Use Migration class to generate from ERB templates
+                            migration = create_migration_generator(features_needed)
 
-      # Generate the migration content
-      migration_content = migration.generate
+                            # Generate the migration content
+                            migration.generate
+                          else
+                            ""
+                          end
+
+      # Generate ALTER TABLE statements for missing columns
+      alter_statements = generate_alter_table_statements
+
+      # Combine CREATE and ALTER statements
+      up_content = if migration_content.strip.empty?
+                     alter_statements
+                   elsif alter_statements.strip.empty?
+                     migration_content
+                   else
+                     migration_content.strip + "\n\n" + alter_statements
+                   end
+
+      # Generate down statements
+      drop_tables = generate_drop_statements
+      drop_columns = generate_drop_column_statements
+
+      down_content = if drop_tables.strip.empty?
+                       drop_columns
+                     elsif drop_columns.strip.empty?
+                       drop_tables
+                     else
+                       drop_tables.strip + "\n\n" + drop_columns
+                     end
 
       # Wrap in Sequel.migration block with up/down
       <<~RUBY
@@ -50,11 +81,11 @@ module Rodauth
 
         Sequel.migration do
           up do
-        #{indent(migration_content, 4)}
+        #{indent(up_content, 4)}
           end
 
           down do
-        #{indent(generate_drop_statements, 4)}
+        #{indent(down_content, 4)}
           end
         end
       RUBY
@@ -83,6 +114,8 @@ module Rodauth
     #
     # @return [String] Sequel DROP TABLE code
     def generate_drop_statements
+      return "" if missing_tables.empty?
+
       # Extract all tables from ERB templates (not just discovered methods)
       all_tables = extract_all_tables_from_templates
 
@@ -97,20 +130,111 @@ module Rodauth
       statements.join("\n")
     end
 
+    # Generate ALTER TABLE statements for missing columns
+    #
+    # Groups columns by table and generates alter_table blocks
+    # for each table with missing columns.
+    #
+    # @return [String] Sequel ALTER TABLE code
+    def generate_alter_table_statements
+      return "" if missing_columns.empty?
+
+      # Group columns by table
+      columns_by_table = missing_columns.group_by { |col| col[:table] }
+
+      statements = columns_by_table.map do |table_name, columns|
+        # Generate alter_table block for this table
+        alter_block = ["alter_table(:#{table_name}) do"]
+
+        columns.each do |col|
+          # Map Ruby type symbol to Sequel column type
+          column_type = map_column_type(col[:type])
+          null_option = col[:null] ? ", null: true" : ""
+
+          alter_block << "  add_column :#{col[:column]}, #{column_type}#{null_option}"
+        end
+
+        alter_block << "end"
+        alter_block.join("\n")
+      end
+
+      statements.join("\n\n")
+    end
+
+    # Generate DROP COLUMN statements for rolling back column additions
+    #
+    # @return [String] Sequel DROP COLUMN code
+    def generate_drop_column_statements
+      return "" if missing_columns.empty?
+
+      # Group columns by table
+      columns_by_table = missing_columns.group_by { |col| col[:table] }
+
+      statements = columns_by_table.map do |table_name, columns|
+        # Generate alter_table block for this table
+        alter_block = ["alter_table(:#{table_name}) do"]
+
+        columns.each do |col|
+          alter_block << "  drop_column :#{col[:column]}"
+        end
+
+        alter_block << "end"
+        alter_block.join("\n")
+      end
+
+      statements.join("\n\n")
+    end
+
     # Execute CREATE TABLE operations directly against the database
     #
     # @param db [Sequel::Database] Database connection
     def execute_creates(db)
-      # Extract unique features from missing tables
-      features_needed = extract_features_from_missing_tables
+      # Create tables if there are any missing
+      if missing_tables.any?
+        # Extract unique features from missing tables
+        features_needed = extract_features_from_missing_tables
 
-      # Use Migration class to execute ERB templates directly
-      migration = create_migration_generator(features_needed)
+        # Use Migration class to execute ERB templates directly
+        migration = create_migration_generator(features_needed)
 
-      begin
-        migration.execute_create_tables(db)
-      rescue => e
-        raise "Failed to execute table creation: #{e.class} - #{e.message}\n  #{e.backtrace.first(5).join("\n  ")}"
+        begin
+          migration.execute_create_tables(db)
+        rescue => e
+          raise "Failed to execute table creation: #{e.class} - #{e.message}\n  #{e.backtrace.first(5).join("\n  ")}"
+        end
+      end
+
+      # Execute ALTER TABLE statements for missing columns
+      execute_alter_tables(db)
+    end
+
+    # Execute ALTER TABLE operations directly against the database
+    #
+    # @param db [Sequel::Database] Database connection
+    def execute_alter_tables(db)
+      return if missing_columns.empty?
+
+      # Group columns by table
+      columns_by_table = missing_columns.group_by { |col| col[:table] }
+
+      columns_by_table.each do |table_name, columns|
+        db.alter_table(table_name.to_sym) do
+          columns.each do |col|
+            # Map Ruby type symbol to Sequel column type
+            # Use the symbol directly - Sequel handles type mapping
+            column_type = case col[:type]
+                         when :String, :Text then String
+                         when :Integer then Integer
+                         when :Bignum, :BigDecimal then :Bignum
+                         when :Boolean then TrueClass
+                         when :Date then Date
+                         when :DateTime, :Time then DateTime
+                         else String
+                         end
+
+            add_column col[:column].to_sym, column_type, null: col[:null]
+          end
+        end
       end
     end
 
@@ -316,6 +440,52 @@ module Rodauth
     # @return [String] Indented text
     def indent(text, spaces)
       text.lines.map { |line| line.strip.empty? ? line : (" " * spaces) + line }.join
+    end
+
+    # Map column type symbol to Sequel migration code representation
+    #
+    # @param type [Symbol] Column type (:String, :Integer, etc.)
+    # @return [String] Sequel column type code
+    def map_column_type(type)
+      case type
+      when :String, :Text
+        "String"
+      when :Integer
+        "Integer"
+      when :Bignum, :BigDecimal
+        "Bignum"
+      when :Boolean
+        "TrueClass"
+      when :Date
+        "Date"
+      when :DateTime, :Time
+        "DateTime"
+      else
+        "String"  # Default to String for unknown types
+      end
+    end
+
+    # Map column type symbol to Sequel execution type
+    #
+    # @param type [Symbol] Column type (:String, :Integer, etc.)
+    # @return [Symbol] Sequel column type for execution
+    def map_column_type_for_execution(type)
+      case type
+      when :String, :Text
+        String
+      when :Integer
+        Integer
+      when :Bignum, :BigDecimal
+        :Bignum
+      when :Boolean
+        TrueClass
+      when :Date
+        Date
+      when :DateTime, :Time
+        DateTime
+      else
+        String  # Default to String for unknown types
+      end
     end
   end
 end
