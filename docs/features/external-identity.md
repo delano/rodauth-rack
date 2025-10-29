@@ -103,32 +103,6 @@ rodauth.external_identity_status
 # => [{name: :stripe, column: :stripe_customer_id, value: "cus_123", ...}]
 ```
 
-## Database Setup
-
-Add columns to your accounts table:
-
-```ruby
-# PostgreSQL
-alter_table :accounts do
-  add_column :stripe_customer_id, String
-  add_column :redis_session_key, String
-  add_index :stripe_customer_id, unique: true
-end
-
-# SQLite
-alter_table :accounts do
-  add_column :stripe_customer_id, String
-  add_column :redis_session_key, String
-end
-
-# MySQL
-alter_table :accounts do
-  add_column :stripe_customer_id, String
-  add_column :redis_session_key, String
-  add_index :stripe_customer_id, unique: true
-end
-```
-
 ## Anti-Patterns
 
 **Don't use external_identity for:**

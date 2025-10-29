@@ -2,7 +2,8 @@
 
 Framework-agnostic utilities for [Rodauth](http://rodauth.jeremyevans.net) authentication. Provides external Rodauth features and Sequel migration generators.
 
-**Project Status**: Experimental learning project. Not published to RubyGems.
+> [!WARNING]
+> This project is in early alpha. APIs may change significantly. Not ready for prime time.
 
 ## Overview
 
@@ -68,7 +69,7 @@ end
 - Stripe customer ID for subscription management
 - Redis session keys for distributed session tracking
 - NoSQL document IDs (MongoDB, Elasticsearch, Cassandra)
-- External service correlation IDs (Auth0, Firebase, etc.)
+- External service correlation IDs (Supabase, Firebase, other bases etc.)
 
 **Documentation:** [docs/features/external-identity.md](docs/features/external-identity.md)
 
