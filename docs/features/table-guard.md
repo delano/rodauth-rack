@@ -1,6 +1,6 @@
 # Table Guard Feature
 
-Validate that required database tables exist for enabled Rodauth features at startup.
+Catch missing database tables at startup instead of runtime with configurable validation modes and optional auto-creation in development.
 
 ## Installation
 
@@ -24,21 +24,9 @@ Validation behavior when required tables are missing.
 - `:halt` / `:exit` - Log error and exit the process immediately
 - Block - Custom handler (receives missing tables array)
 
-**Examples:**
+**Block Example:**
 
 ```ruby
-# Production: fail fast with exception
-table_guard_mode :raise
-
-# Production alternative: exit immediately
-table_guard_mode :halt
-
-# Staging: log error but continue (monitor logs for issues)
-table_guard_mode :error
-
-# Development: warn but continue
-table_guard_mode :warn
-
 # Custom handler with environment-specific behavior
 table_guard_mode do |missing|
   if ENV['RACK_ENV'] == 'production'
@@ -70,9 +58,6 @@ table_guard_sequel_mode :create
 
 # Test: fresh schema each run
 table_guard_sequel_mode :recreate
-
-# Production: validation only, never create
-table_guard_sequel_mode nil
 ```
 
 ### `table_guard_skip_tables`

@@ -31,45 +31,43 @@ bundle install
 
 ### 1. External Identity Feature
 
-Track external service identifiers (Stripe customer IDs, Redis keys, NoSQL document IDs) in your Rodauth accounts table with automatic helper method generation.
+Store external service identifiers in your accounts table with automatic helper methods.
 
 ```ruby
 class RodauthApp < Roda
   plugin :rodauth do
-    enable :login, :external_identity
+    enable :external_identity
 
-    # Declare external identity columns
-    external_identity_column :stripe, :stripe_customer_id
-    external_identity_column :redis, :redis_session_key
-    external_identity_column :elasticsearch, :es_document_id
-  end
+    # Declare columns (names used as-is)
+    external_identity_column :stripe_customer_id
+    external_identity_column :redis_uuid
+    external_identity_column :elasticsearch_doc_id
 
-  route do |r|
-    r.rodauth
-    rodauth.check
-
-    # Use generated helper methods
-    stripe_id = rodauth.account_stripe_id        # => "cus_abc123"
-    redis_key = rodauth.account_redis_id         # => "session:uuid"
-    es_doc = rodauth.account_elasticsearch_id    # => "doc_456"
+    # Configuration
+    external_identity_check_columns :autocreate  # Generate migration code
   end
 end
+
+# Usage - helper methods match column names
+rodauth.stripe_customer_id   # => "cus_abc123"
+rodauth.redis_uuid           # => "550e8400-e29b-41d4-..."
+rodauth.elasticsearch_doc_id # => "doc_789xyz"
 ```
 
 **Key Features:**
 
-- Automatic helper method generation (e.g., `account_stripe_id`)
-- Auto-includes columns in `account_select` for eager loading
-- Introspection API for debugging and testing
-- Optional validation of column existence
-- Graceful nil handling when account not loaded
+- Declarative column configuration
+- Automatic helper method generation
+- Auto-inclusion in `account_select`
+- Column existence validation with migration code generation
+- Introspection API for debugging
 
 **Common Use Cases:**
 
-- Stripe customer ID for subscription management
-- Redis session keys for distributed session tracking
-- NoSQL document IDs (MongoDB, Elasticsearch, Cassandra)
-- External service correlation IDs (Supabase, Firebase, other bases etc.)
+- Payment integration (Stripe customer IDs)
+- Session management (Redis keys)
+- Search indexing (Elasticsearch document IDs)
+- Federated authentication (Auth0 user IDs)
 
 **Documentation:** [docs/features/external-identity.md](docs/features/external-identity.md)
 
