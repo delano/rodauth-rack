@@ -247,6 +247,19 @@ RSpec.describe "Rodauth external_identity feature" do
   end
 
   describe "account_select integration" do
+    it "returns nil when no other features define account_select" do
+      create_accounts_table_with_columns(columns: [:stripe_id])
+      app_class = create_roda_app do
+        enable :external_identity
+        external_identity_column :stripe_id
+      end
+
+      rodauth = app_class.allocate.rodauth
+      select_cols = rodauth.account_select
+      # Should return nil (select all columns) since no other feature defines account_select
+      expect(select_cols).to be_nil
+    end
+
     it "adds columns to account_select" do
       create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
       app_class = create_roda_app do
@@ -257,22 +270,11 @@ RSpec.describe "Rodauth external_identity feature" do
 
       rodauth = app_class.allocate.rodauth
       select_cols = rodauth.account_select
-      expect(select_cols).to include(:stripe_id, :redis_id)
+      # Should be nil when no base feature defines account_select
+      expect(select_cols).to be_nil
     end
 
-    it "does not add duplicates to account_select" do
-      create_accounts_table_with_columns(columns: [:stripe_id])
-      app_class = create_roda_app do
-        enable :external_identity
-        external_identity_column :stripe_id
-      end
-
-      rodauth = app_class.allocate.rodauth
-      select_cols = rodauth.account_select
-      expect(select_cols.count(:stripe_id)).to eq(1)
-    end
-
-    it "respects include_in_select: false option" do
+    it "returns nil when no base account_select and include_in_select options mixed" do
       create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
       app_class = create_roda_app do
         enable :external_identity
@@ -282,11 +284,12 @@ RSpec.describe "Rodauth external_identity feature" do
 
       rodauth = app_class.allocate.rodauth
       select_cols = rodauth.account_select
-      expect(select_cols).not_to include(:stripe_id)
-      expect(select_cols).to include(:redis_id)
+      # When there's no base account_select, should return nil (select all)
+      # even if some columns have include_in_select: false
+      expect(select_cols).to be_nil
     end
 
-    it "works with other Rodauth features" do
+    it "works with other Rodauth features that don't define account_select" do
       create_accounts_table_with_columns(columns: [:stripe_id])
       app_class = create_roda_app do
         enable :login
@@ -296,23 +299,28 @@ RSpec.describe "Rodauth external_identity feature" do
 
       rodauth = app_class.allocate.rodauth
       select_cols = rodauth.account_select
-      # Verify that external_identity column is included
-      expect(select_cols).to include(:stripe_id)
-      # Verify that the feature works alongside other Rodauth features
-      expect(app_class).not_to be_nil
+      # Login feature doesn't define account_select, so should return nil
+      expect(select_cols).to be_nil
     end
 
-    it "preserves order of columns" do
+    it "preserves order of columns when base feature provides array" do
       create_accounts_table_with_columns(columns: [:stripe_id, :redis_id, :auth0_id])
       app_class = create_roda_app do
+        enable :login
         enable :external_identity
         external_identity_column :stripe_id
         external_identity_column :redis_id
         external_identity_column :auth0_id
+
+        # Explicitly set account_select to test column addition
+        account_select [:id, :email]
       end
 
       rodauth = app_class.allocate.rodauth
       select_cols = rodauth.account_select
+
+      # Should include base columns plus external identity columns
+      expect(select_cols).to include(:id, :email, :stripe_id, :redis_id, :auth0_id)
 
       # External identity columns should be added in order
       stripe_idx = select_cols.index(:stripe_id)
@@ -321,6 +329,196 @@ RSpec.describe "Rodauth external_identity feature" do
 
       expect(stripe_idx).to be < redis_idx
       expect(redis_idx).to be < auth0_idx
+    end
+
+    context "SQL query behavior" do
+      it "selects ALL columns when no other features define account_select" do
+        create_accounts_table_with_columns(columns: [:external_id])
+        db[:accounts].insert(
+          email: 'test@example.com',
+          status_id: 'verified',
+          external_id: 'ext_123'
+        )
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :external_id
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Query the account to trigger actual SELECT
+        account = db[:accounts].where(id: 1).first
+
+        # Verify account hash includes ALL columns
+        expect(account).to include(:id, :email, :status_id, :external_id)
+        expect(account[:email]).to eq('test@example.com')
+        expect(account[:status_id]).to eq('verified')
+        expect(account[:external_id]).to eq('ext_123')
+      end
+
+      it "selects ALL columns including external_identity column via Rodauth" do
+        create_accounts_table_with_columns(columns: [:external_id])
+        db[:accounts].insert(
+          email: 'user@example.com',
+          status_id: 'verified',
+          external_id: 'ext_456'
+        )
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :external_id
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Manually set account using account_select
+        account_ds = if rodauth.account_select
+                       db[:accounts].select(*rodauth.account_select)
+                     else
+                       db[:accounts]
+                     end
+
+        account = account_ds.where(id: 1).first
+        rodauth.instance_variable_set(:@account, account)
+
+        # Verify loaded account has ALL columns
+        expect(account).to have_key(:id)
+        expect(account).to have_key(:email)
+        expect(account).to have_key(:status_id)
+        expect(account).to have_key(:external_id)
+        expect(account[:email]).to eq('user@example.com')
+        expect(account[:status_id]).to eq('verified')
+        expect(account[:external_id]).to eq('ext_456')
+
+        # Verify helper method works
+        expect(rodauth.external_id).to eq('ext_456')
+      end
+
+      it "does NOT select only external_identity column (regression test for bug)" do
+        create_accounts_table_with_columns(columns: [:external_id])
+        db[:accounts].insert(
+          email: 'bug@example.com',
+          status_id: 'verified',
+          external_id: 'ext_789'
+        )
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :external_id
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Build dataset using account_select (simulating Rodauth's internal behavior)
+        account_ds = if rodauth.account_select
+                       db[:accounts].select(*rodauth.account_select)
+                     else
+                       db[:accounts]
+                     end
+
+        account = account_ds.where(id: 1).first
+
+        # CRITICAL: Should NOT only have external_id column
+        # Should have ALL columns: id, email, status_id, external_id
+        expect(account.keys).to include(:id, :email, :status_id, :external_id)
+        expect(account.keys).not_to eq([:external_id])  # Bug would result in only this
+      end
+
+      it "respects custom account_select from other features" do
+        create_accounts_table_with_columns(columns: [:external_id])
+        db[:accounts].insert(
+          email: 'custom@example.com',
+          status_id: 'verified',
+          external_id: 'ext_999'
+        )
+
+        app_class = create_roda_app do
+          enable :login
+          enable :external_identity
+          external_identity_column :external_id
+
+          # Custom override - only select specific columns
+          account_select [:id, :email]
+        end
+
+        rodauth = app_class.allocate.rodauth
+        select_cols = rodauth.account_select
+
+        # Should include custom columns plus external_identity column
+        expect(select_cols).to include(:id, :email, :external_id)
+        expect(select_cols).not_to include(:status_id)
+      end
+
+      it "handles multiple external_identity columns in query" do
+        create_accounts_table_with_columns(columns: [:stripe_id, :github_id])
+        db[:accounts].insert(
+          email: 'multi@example.com',
+          status_id: 'verified',
+          stripe_id: 'cus_123',
+          github_id: 'gh_456'
+        )
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_id
+          external_identity_column :github_id
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Build dataset
+        account_ds = if rodauth.account_select
+                       db[:accounts].select(*rodauth.account_select)
+                     else
+                       db[:accounts]
+                     end
+
+        account = account_ds.where(id: 1).first
+
+        # Should have ALL columns
+        expect(account).to include(
+          id: 1,
+          email: 'multi@example.com',
+          status_id: 'verified',
+          stripe_id: 'cus_123',
+          github_id: 'gh_456'
+        )
+      end
+
+      it "respects include_in_select: false option in SQL queries" do
+        create_accounts_table_with_columns(columns: [:external_id, :optional_id])
+        db[:accounts].insert(
+          email: 'selective@example.com',
+          status_id: 'verified',
+          external_id: 'ext_111',
+          optional_id: 'opt_222'
+        )
+
+        app_class = create_roda_app do
+          enable :login
+          enable :external_identity
+          external_identity_column :external_id
+          external_identity_column :optional_id, include_in_select: false
+
+          # Explicitly set account_select so we can test selective inclusion
+          account_select [:id, :email]
+        end
+
+        rodauth = app_class.allocate.rodauth
+        select_cols = rodauth.account_select
+
+        # external_id should be in select, optional_id should not
+        expect(select_cols).to include(:external_id)
+        expect(select_cols).not_to include(:optional_id)
+
+        # Query with explicit select
+        account = db[:accounts].select(*select_cols).where(id: 1).first
+
+        # Should have external_id but not optional_id
+        expect(account).to have_key(:external_id)
+        expect(account).not_to have_key(:optional_id)
+      end
     end
   end
 
@@ -736,8 +934,9 @@ RSpec.describe "Rodauth external_identity feature" do
       rodauth = app_class.allocate.rodauth
 
       expect(rodauth.external_identity_column_list.length).to eq(4)
-      expect(rodauth.account_select).to include(:stripe_id, :auth0_id, :custom_id)
-      expect(rodauth.account_select).not_to include(:redis_id)
+      # When no base account_select is defined, it returns nil (select all)
+      # This is correct behavior - all columns including external ones will be selected
+      expect(rodauth.account_select).to be_nil
       expect(rodauth.respond_to?(:auth0_user)).to be true
     end
 
