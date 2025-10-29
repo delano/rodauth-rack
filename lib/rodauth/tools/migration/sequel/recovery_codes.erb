@@ -1,5 +1,7 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the recovery codes feature
-create_table :<%= table_prefix %>_recovery_codes do
+create_table(:<%= table_prefix %>_recovery_codes) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, type: :Bignum
   String :code
   primary_key [:id, :code]

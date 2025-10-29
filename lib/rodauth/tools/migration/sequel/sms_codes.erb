@@ -1,5 +1,7 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the sms codes feature
-create_table :<%= table_prefix %>_sms_codes do
+create_table(:<%= table_prefix %>_sms_codes) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   String :phone_number, null: false
   Integer :num_failures

@@ -1,23 +1,33 @@
-<% if db.database_type == :postgres -%>
-begin
-  run "CREATE EXTENSION IF NOT EXISTS citext"
-rescue NoMethodError # migration is being reverted
+<%# lib/rodauth/tools/migration/sequel/base.erb %>
+
+extension :date_arithmetic
+
+# Used by the account verification and close account features
+create_table(:<%= table_prefix %>_statuses) do
+  Integer :id, primary_key: true
+  String :name, null: false, unique: true
+end
+from(:<%= table_prefix %>_statuses).import([:id, :name], [[1, 'Unverified'], [2, 'Verified'], [3, 'Closed']])
+
+create_table(:<%= table_prefix %>_password_hashes) do
+  foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
+  String :password_hash, null: false
 end
 
-<% end -%>
-create_table :<%= pluralize(table_prefix) %> do
+db = self
+create_table(:<%= pluralize(table_prefix) %>) do
   primary_key :id, type: :Bignum
+  foreign_key :status_id, :<%= table_prefix %>_statuses, null: false, default: 1
 <% if db.database_type == :postgres -%>
   citext :email, null: false
   constraint :valid_email, email: /^[^,;@ \r\n]+@[^,@; \r\n]+\.[^,@; \r\n]+$/
 <% else -%>
   String :email, null: false
 <% end -%>
-  Integer :status, null: false, default: 1
 <% if db.supports_partial_indexes? -%>
-  index :email, unique: true, where: { status: [1, 2] }
+  index :email, unique: true, where: {status_id: [1, 2]}
 <% else -%>
   index :email, unique: true
 <% end -%>
-  String :password_hash
+  String :password_hash, null: true
 end

@@ -1,11 +1,21 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the lockout feature
-create_table :<%= table_prefix %>_login_failures do
+deadline_opts = proc do |days|
+  if db.database_type == :mysql
+    {null: false}
+  else
+    {null: false, default: Sequel.date_add(Sequel::CURRENT_TIMESTAMP, days: days)}
+  end
+end
+
+create_table(:<%= table_prefix %>_login_failures) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   Integer :number, null: false, default: 1
 end
-create_table :<%= table_prefix %>_lockouts do
+create_table(:<%= table_prefix %>_lockouts) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   String :key, null: false
-  DateTime :deadline, null: false
+  DateTime :deadline, deadline_opts[1]
   DateTime :email_last_sent
 end

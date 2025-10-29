@@ -1,5 +1,7 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the active sessions feature
-create_table :<%= table_prefix %>_active_session_keys do
+create_table(:<%= table_prefix %>_active_session_keys) do
   foreign_key :<%= table_prefix %>_id, :<%= pluralize(table_prefix) %>, type: :Bignum
   String :session_id
   Time :created_at, null: false, default: Sequel::CURRENT_TIMESTAMP

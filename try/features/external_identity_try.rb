@@ -18,7 +18,7 @@ DB = Sequel.sqlite
 DB.create_table :accounts do
   primary_key :id
   String :email, null: false, unique: true
-  String :status, default: "unverified"
+  String :status_id, default: "unverified"
   String :stripe_id
   String :stripe_customer_id
   String :redis_id

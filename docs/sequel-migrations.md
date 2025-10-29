@@ -42,7 +42,7 @@ Sequel.migration do
     create_table?(:accounts) do
       primary_key :id, type: :Bignum
       String :email, null: false
-      Integer :status, null: false, default: 1
+      Integer :status_id, null: false, default: 1
       index :email, unique: true
     end
 
@@ -284,7 +284,7 @@ Before deploying to production:
 
 **Example:**
 
-```
+```log
 E Sequel -- SQLite3::SQLException: no such table: accounts: SELECT NULL AS 'nil' FROM `accounts` LIMIT 1
 ```
 

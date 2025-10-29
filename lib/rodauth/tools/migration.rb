@@ -109,6 +109,18 @@ module Rodauth
         inflector.pluralize(str)
       end
 
+      # Helper method for JSON column type based on database type
+      def json_type
+        case db.database_type
+        when :postgres
+          :jsonb
+        when :sqlite, :mysql
+          :json
+        else
+          String
+        end
+      end
+
       # Cached inflector instance
       def inflector
         @inflector ||= Dry::Inflector.new
