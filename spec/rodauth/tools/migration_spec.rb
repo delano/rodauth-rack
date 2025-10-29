@@ -55,9 +55,9 @@ RSpec.describe Rodauth::Tools::Migration do
       generator = described_class.new(features: [:base])
       migration = generator.generate
 
-      expect(migration).to include('create_table :accounts')
+      expect(migration).to include('create_table(:accounts)')
       expect(migration).to include('primary_key :id')
-      expect(migration).to include('Integer :status_id')
+      expect(migration).to include('foreign_key :status_id')
       expect(migration).to include('String :password_hash')
     end
 
@@ -65,22 +65,22 @@ RSpec.describe Rodauth::Tools::Migration do
       generator = described_class.new(features: [:verify_account])
       migration = generator.generate
 
-      expect(migration).to include('create_table :account_verification_keys')
+      expect(migration).to include('create_table(:account_verification_keys)')
     end
 
     it 'generates migration for multiple features' do
       generator = described_class.new(features: %i[base remember])
       migration = generator.generate
 
-      expect(migration).to include('create_table :accounts')
-      expect(migration).to include('create_table :account_remember_keys')
+      expect(migration).to include('create_table(:accounts)')
+      expect(migration).to include('create_table(:account_remember_keys)')
     end
 
     it 'uses custom table prefix' do
       generator = described_class.new(features: [:base], prefix: 'user')
       migration = generator.generate
 
-      expect(migration).to include('create_table :users')
+      expect(migration).to include('create_table(:users)')
     end
 
     context 'with invalid features' do

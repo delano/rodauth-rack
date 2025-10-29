@@ -150,7 +150,7 @@ Sequel.migration do
     create_table?(:accounts) do
       primary_key :id, type: :Bignum
       String :email, null: false
-      Integer :status,_id null: false, default: 1
+      Integer :status_id, null: false, default: 1
       index :email, unique: true
     end
 

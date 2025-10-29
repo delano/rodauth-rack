@@ -331,14 +331,8 @@ module Rodauth
         value = account ? account[column] : nil
         next if value.nil? # Skip nil values
 
-        begin
-          validate_external_identity(column, value)
-          results[column] = true
-        rescue ArgumentError => e
-          results[column] = false
-          # Re-raise to fail the operation
-          raise e
-        end
+        validate_external_identity(column, value)
+        results[column] = true
       end
       results
     end

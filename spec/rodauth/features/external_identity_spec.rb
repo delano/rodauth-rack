@@ -840,7 +840,7 @@ RSpec.describe "Rodauth external_identity feature" do
         end
 
         # Create an account with non-normalized value
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "  CUS_ABC123  "
         )
@@ -862,7 +862,7 @@ RSpec.describe "Rodauth external_identity feature" do
             formatter: ->(v) { v.to_s.strip }
         end
 
-        account_record = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           redis_uuid: "  550e8400-e29b-41d4-a716-446655440000  "
         )
@@ -883,7 +883,7 @@ RSpec.describe "Rodauth external_identity feature" do
             formatter: ->(v) { v.downcase }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           external_id: "ABC-123-XYZ"
         )
@@ -904,7 +904,7 @@ RSpec.describe "Rodauth external_identity feature" do
             formatter: ->(v) { v.to_s.strip.downcase.gsub(/[^a-z0-9]/, '') }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           api_key: "  API-KEY-123  "
         )
@@ -925,7 +925,7 @@ RSpec.describe "Rodauth external_identity feature" do
             formatter: ->(v) { v.to_s.strip }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           optional_id: nil
         )
@@ -961,7 +961,7 @@ RSpec.describe "Rodauth external_identity feature" do
           external_identity_column :legacy_id
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           legacy_id: "  LEGACY  "
         )
@@ -987,7 +987,7 @@ RSpec.describe "Rodauth external_identity feature" do
             }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           phone_number: "(555) 123-4567"
         )
@@ -1109,7 +1109,7 @@ RSpec.describe "Rodauth external_identity feature" do
             validator: ->(v) { v.length == 36 }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "cus_abc123",
           redis_uuid: "550e8400-e29b-41d4-a716-446655440000"
@@ -1135,7 +1135,7 @@ RSpec.describe "Rodauth external_identity feature" do
             validator: ->(v) { v.length == 36 }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "invalid",  # Will fail validation
           redis_uuid: "550e8400-e29b-41d4-a716-446655440000"
@@ -1161,7 +1161,7 @@ RSpec.describe "Rodauth external_identity feature" do
           # No validator for legacy_id
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "cus_abc123",
           legacy_id: "anything_goes"
@@ -1387,7 +1387,7 @@ RSpec.describe "Rodauth external_identity feature" do
             }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "cus_abc123"
         )
@@ -1414,7 +1414,7 @@ RSpec.describe "Rodauth external_identity feature" do
             }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "cus_deleted"
         )
@@ -1437,7 +1437,7 @@ RSpec.describe "Rodauth external_identity feature" do
             }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           external_id: "ext_123"
         )
@@ -1463,7 +1463,7 @@ RSpec.describe "Rodauth external_identity feature" do
             verifier: ->(id) { verifier_called = true; true }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           optional_id: nil
         )
@@ -1486,7 +1486,7 @@ RSpec.describe "Rodauth external_identity feature" do
           # No verifier
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           legacy_id: "legacy_123"
         )
@@ -1513,7 +1513,7 @@ RSpec.describe "Rodauth external_identity feature" do
             verifier: ->(id) { github_users[id] && !github_users[id][:suspended] }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "cus_abc123",
           github_user_id: "12345"
@@ -1541,7 +1541,7 @@ RSpec.describe "Rodauth external_identity feature" do
           # No verifier for legacy_id
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "cus_abc123",
           legacy_id: "legacy_123"
@@ -1573,7 +1573,7 @@ RSpec.describe "Rodauth external_identity feature" do
             }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           team_member_id: "member_123"
         )
@@ -1598,7 +1598,7 @@ RSpec.describe "Rodauth external_identity feature" do
             verifier: ->(key) { valid_keys.include?(key) }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           api_key: "  API_KEY123  "
         )
@@ -1625,7 +1625,7 @@ RSpec.describe "Rodauth external_identity feature" do
             verifier: ->(id) { github_users[id] && !github_users[id][:suspended] }
         end
 
-        account = db[:accounts].insert(
+        db[:accounts].insert(
           email: "user@example.com",
           stripe_customer_id: "cus_deleted",
           github_user_id: "12345"
