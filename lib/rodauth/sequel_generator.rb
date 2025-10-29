@@ -232,27 +232,13 @@ module Rodauth
       columns_by_table = missing_columns.group_by { |col| col[:table] }
 
       columns_by_table.each do |table_name, columns|
+        # Capture self reference before entering alter_table block
+        generator = self
+
         db.alter_table(table_name.to_sym) do
           columns.each do |col|
             # Map Ruby type symbol or class to Sequel column type
-            # Handle both Symbol (:Integer) and Class (Integer) forms
-            # Note: Can't use case/when with Class constants directly, use if/elsif
-            type = col[:type]
-            column_type = if type == String || type == :String || type == :Text
-                           String
-                         elsif type == Integer || type == :Integer
-                           Integer
-                         elsif type == :Bignum || type == :BigDecimal
-                           :Bignum
-                         elsif type == TrueClass || type == FalseClass || type == :Boolean
-                           TrueClass
-                         elsif type == Date || type == :Date
-                           Date
-                         elsif type == DateTime || type == Time || type == :DateTime || type == :Time
-                           DateTime
-                         else
-                           String
-                         end
+            column_type = generator.send(:map_column_type_for_execution, col[:type])
 
             # Build column options
             column_opts = {}
