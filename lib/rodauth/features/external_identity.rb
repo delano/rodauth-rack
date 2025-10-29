@@ -114,7 +114,6 @@ module Rodauth
     # Ensures external identity columns are fetched with the account
     # unless explicitly disabled via include_in_select: false
     def account_select
-      cols = super
 
       # Call defined?(super) safely wraps the super call
       cols = if defined?(super)
