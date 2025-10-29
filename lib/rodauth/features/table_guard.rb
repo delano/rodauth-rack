@@ -279,6 +279,10 @@ module Rodauth
     #   - :name [Symbol] Column name (required)
     #   - :type [Symbol] Column type (default: :String)
     #   - :null [Boolean] Allow NULL (default: true)
+    #   - :default [Object] Default value (optional)
+    #   - :unique [Boolean] Unique constraint (default: false)
+    #   - :size [Integer] Column size for strings (optional)
+    #   - :index [Boolean, Hash] Create index (default: false)
     #   - :feature [Symbol] Feature that requires this column (default: :unknown)
     #
     # @example
@@ -286,6 +290,8 @@ module Rodauth
     #     name: :stripe_customer_id,
     #     type: :String,
     #     null: true,
+    #     unique: true,
+    #     index: true,
     #     feature: :external_identity
     #   })
     def register_required_column(table_name, column_def)
@@ -295,10 +301,14 @@ module Rodauth
       # Initialize table entry if needed
       column_requirements[table_name] ||= {}
 
-      # Store column definition
+      # Store column definition with all Sequel options
       column_requirements[table_name][column_name] = {
         type: column_def[:type] || :String,
         null: column_def.fetch(:null, true),
+        default: column_def[:default],
+        unique: column_def[:unique],
+        size: column_def[:size],
+        index: column_def[:index],
         feature: column_def[:feature] || :unknown
       }
 
@@ -327,6 +337,10 @@ module Rodauth
             column: column_name,
             type: column_def[:type],
             null: column_def[:null],
+            default: column_def[:default],
+            unique: column_def[:unique],
+            size: column_def[:size],
+            index: column_def[:index],
             feature: column_def[:feature]
           }
         end
@@ -348,6 +362,10 @@ module Rodauth
             column: column_name,
             type: column_def[:type],
             null: column_def[:null],
+            default: column_def[:default],
+            unique: column_def[:unique],
+            size: column_def[:size],
+            index: column_def[:index],
             feature: column_def[:feature]
           }
         end
@@ -376,6 +394,10 @@ module Rodauth
             column: column_name,
             type: column_def[:type],
             null: column_def[:null],
+            default: column_def[:default],
+            unique: column_def[:unique],
+            size: column_def[:size],
+            index: column_def[:index],
             feature: column_def[:feature],
             exists: actual_columns.include?(column_name),
             table_exists: table_exists?(table_name)
@@ -587,8 +609,9 @@ module Rodauth
 
         # Create all tables fresh (uses missing_tables which should now be all of them)
         current_missing = missing_tables
-        if current_missing.any?
-          generator_for_all = Rodauth::SequelGenerator.new(current_missing, self)
+        current_missing_cols = missing_columns
+        if current_missing.any? || current_missing_cols.any?
+          generator_for_all = Rodauth::SequelGenerator.new(current_missing, self, current_missing_cols)
           generator_for_all.execute_creates(db)
         end
 

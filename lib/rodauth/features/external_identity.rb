@@ -84,6 +84,123 @@ module Rodauth
     # Add external_identity_column method to Configuration class
     # This makes it available during the configuration block
     configuration_module_eval do
+      # Declare an external identity column with optional lifecycle callbacks and database options
+      #
+      # Creates a helper method to access the column value and automatically includes
+      # it in account_select (unless disabled). Supports validation, formatting,
+      # verification, and lifecycle hooks.
+      #
+      # @param column [Symbol] Database column name (required)
+      # @param options [Hash] Configuration options
+      #
+      # @option options [Symbol] :method_name
+      #   Custom method name for accessing the column (default: same as column name)
+      #
+      # @option options [Boolean] :include_in_select (true)
+      #   Whether to automatically include in account_select
+      #
+      # @option options [Proc] :before_create_account
+      #   Callback to generate value before account creation. Runs during
+      #   before_create_account hook. Value will be formatted and validated
+      #   if those callbacks are provided. Block is evaluated in Rodauth instance context.
+      #
+      # @option options [Proc] :after_create_account
+      #   Callback to execute after account creation. Receives the column value
+      #   as argument. Block is evaluated in Rodauth instance context.
+      #   Useful for provisioning resources or sending notifications.
+      #
+      # @option options [Proc] :formatter
+      #   Transform values (e.g., strip whitespace, normalize case).
+      #   Block receives value and should return formatted value.
+      #
+      # @option options [Proc] :validator
+      #   Validate values (must return truthy for valid). Block receives value
+      #   and should return true/false. Raises ArgumentError if validation fails.
+      #
+      # @option options [Proc] :verifier
+      #   Health check callback to verify external identity is still valid.
+      #   Non-critical - returns false on failure rather than raising.
+      #
+      # @option options [Proc] :handshake
+      #   Security-critical verification callback (e.g., OAuth state verification).
+      #   Must return truthy. Raises on failure. Use for callbacks where failure
+      #   indicates a security issue.
+      #
+      # @option options [Symbol, Class] :type (:String)
+      #   Sequel column type for migration generation. Valid values:
+      #   :String, :Integer, :Bignum, :Boolean, :Date, :DateTime, :Time, :Text
+      #
+      # @option options [Boolean] :null (true)
+      #   Whether column allows NULL values
+      #
+      # @option options [Object] :default (nil)
+      #   Default value for column. Can be a literal value or Proc for dynamic defaults.
+      #
+      # @option options [Boolean] :unique (false)
+      #   Whether column has unique constraint
+      #
+      # @option options [Integer] :size
+      #   Maximum size for String/varchar columns (e.g., 255)
+      #
+      # @option options [Boolean, Hash] :index (false)
+      #   Whether to create index. Use true for simple index,
+      #   or Hash for index options like { unique: true, name: :custom_name }
+      #
+      # @option options [Hash] :sequel
+      #   Nested hash for Sequel-specific options (alternative to flat options).
+      #   Keys: :type, :null, :default, :unique, :size, :index
+      #
+      # @example Basic usage
+      #   external_identity_column :stripe_customer_id
+      #
+      # @example With lifecycle callbacks
+      #   external_identity_column :stripe_customer_id,
+      #     before_create_account: -> { Stripe::Customer.create(email: account[:email]).id },
+      #     after_create_account: -> (id) { StripeMailer.welcome(id).deliver }
+      #
+      # @example With validation and formatting
+      #   external_identity_column :api_key,
+      #     formatter: -> (v) { v.to_s.strip.downcase },
+      #     validator: -> (v) { v =~ /^[a-z0-9]{32}$/ }
+      #
+      # @example With database constraints
+      #   external_identity_column :token,
+      #     type: String,
+      #     null: false,
+      #     unique: true,
+      #     size: 64,
+      #     index: true
+      #
+      # @example With nested Sequel options
+      #   external_identity_column :session_id,
+      #     sequel: {
+      #       type: String,
+      #       null: false,
+      #       default: -> { SecureRandom.hex(32) },
+      #       unique: true,
+      #       index: { unique: true, name: :idx_session_id }
+      #     }
+      #
+      # @example Complete example with all options
+      #   external_identity_column :external_user_id,
+      #     method_name: :external_id,
+      #     include_in_select: true,
+      #     type: String,
+      #     null: false,
+      #     unique: true,
+      #     size: 100,
+      #     index: true,
+      #     before_create_account: -> { ExternalService.create_user(account[:email]) },
+      #     after_create_account: -> (id) { Logger.info("Created external user: #{id}") },
+      #     formatter: -> (v) { v.to_s.strip },
+      #     validator: -> (v) { v.present? && v.length <= 100 }
+      #
+      # @raise [ArgumentError] If column is not a Symbol
+      # @raise [ArgumentError] If column is not a valid Ruby identifier
+      # @raise [ArgumentError] If column is already declared
+      # @raise [ArgumentError] If method_name is not a valid Ruby identifier
+      #
+      # @return [nil]
       def external_identity_column(column, **options)
         # Validate column is a symbol
         unless column.is_a?(Symbol)
@@ -121,6 +238,7 @@ module Rodauth
           validate: options[:validate] || false,
           # Layer 2: Lifecycle callbacks
           before_create_account: options[:before_create_account],
+          after_create_account: options[:after_create_account],
           formatter: options[:formatter],
           validator: options[:validator],
           verifier: options[:verifier],
@@ -153,7 +271,6 @@ module Rodauth
     # Ensures external identity columns are fetched with the account
     # unless explicitly disabled via include_in_select: false
     def account_select
-
       # Call defined?(super) safely wraps the super call
       cols = if defined?(super)
                super
@@ -458,6 +575,23 @@ module Rodauth
       generate_external_identities
     end
 
+    # Process external identity callbacks after account creation
+    #
+    # Runs in after_create_account hook. For each column with
+    # after_create_account callback configured:
+    # - Retrieve current column value
+    # - Execute callback with column value as argument
+    #
+    # Useful for:
+    # - Provisioning external resources
+    # - Sending notifications with external IDs
+    # - Triggering webhooks
+    # - Logging/auditing
+    def after_create_account
+      super if defined?(super)
+      process_after_create_callbacks
+    end
+
     # Validation hook - runs after configuration is complete
     #
     # Validates configuration and provides helpful warnings/errors
@@ -520,6 +654,23 @@ module Rodauth
       end
     end
 
+    # Process after_create_account callbacks for external identity columns
+    #
+    # Called during after_create_account hook. For each column with
+    # after_create_account callback configured, execute the callback
+    # with the current column value as argument.
+    def process_after_create_callbacks
+      external_identity_columns_config.each do |column, config|
+        next unless config[:after_create_account]
+
+        # Get current value from account
+        current_value = account[column]
+
+        # Execute callback with current value
+        instance_exec(current_value, &config[:after_create_account])
+      end
+    end
+
     # Internal method called by auth_cached_method
     #
     # Retrieves the storage hash for external identity configurations from the Auth class
@@ -558,7 +709,7 @@ module Rodauth
         register_external_columns_with_table_guard(missing)
       else
         # No table_guard available - provide helpful error with migration code
-        raise ArgumentError, build_missing_columns_error(missing)
+        raise ArgumentError, build_external_identity_columns_error(missing)
       end
     end
 
@@ -594,11 +745,18 @@ module Rodauth
       # based on its sequel_mode setting
 
       missing.each do |column|
-        # Determine column type - default to String for external IDs
+        # Get column configuration
+        config = external_identity_columns_config[column]
+
+        # Build column definition with Sequel options
         column_def = {
           name: column,
-          type: :String,
-          null: true,  # External IDs are optional
+          type: extract_column_type(config),
+          null: extract_column_null(config),
+          default: extract_column_default(config),
+          unique: extract_column_unique(config),
+          size: extract_column_size(config),
+          index: extract_column_index(config),
           feature: :external_identity
         }
 
@@ -630,14 +788,79 @@ module Rodauth
       end
     end
 
-    # Build error message for missing columns with migration example
+    # Extract column type from configuration
+    #
+    # Checks in order: nested sequel hash, flat options, default to String
+    #
+    # @param config [Hash] Column configuration
+    # @return [Symbol] Column type
+    def extract_column_type(config)
+      config.dig(:options, :sequel, :type) ||
+      config.dig(:options, :type) ||
+      :String
+    end
+
+    # Extract column null setting from configuration
+    #
+    # @param config [Hash] Column configuration
+    # @return [Boolean] Whether column allows NULL
+    def extract_column_null(config)
+      # Check nested sequel hash first, then flat options
+      if config.dig(:options, :sequel)&.key?(:null)
+        config.dig(:options, :sequel, :null)
+      elsif config.dig(:options)&.key?(:null)
+        config.dig(:options, :null)
+      else
+        true  # External IDs are optional by default
+      end
+    end
+
+    # Extract column default value from configuration
+    #
+    # @param config [Hash] Column configuration
+    # @return [Object, nil] Default value or nil
+    def extract_column_default(config)
+      config.dig(:options, :sequel, :default) ||
+      config.dig(:options, :default)
+    end
+
+    # Extract column unique setting from configuration
+    #
+    # @param config [Hash] Column configuration
+    # @return [Boolean] Whether column has unique constraint
+    def extract_column_unique(config)
+      config.dig(:options, :sequel, :unique) ||
+      config.dig(:options, :unique) ||
+      false
+    end
+
+    # Extract column size from configuration
+    #
+    # @param config [Hash] Column configuration
+    # @return [Integer, nil] Column size or nil
+    def extract_column_size(config)
+      config.dig(:options, :sequel, :size) ||
+      config.dig(:options, :size)
+    end
+
+    # Extract column index setting from configuration
+    #
+    # @param config [Hash] Column configuration
+    # @return [Boolean, Hash] Index configuration
+    def extract_column_index(config)
+      config.dig(:options, :sequel, :index) ||
+      config.dig(:options, :index) ||
+      false
+    end
+
+    # Build error message for missing external identity columns with migration example
     #
     # @param missing [Array<Symbol>] Array of missing column names
     # @return [String] Error message with migration code
-    def build_missing_columns_error(missing)
+    def build_external_identity_columns_error(missing)
       column_list = missing.map { |col| ":#{col}" }.join(', ')
 
-      migration_code = generate_migration_code(missing)
+      migration_code = generate_external_identity_migration_code(missing)
 
       <<~ERROR
         External identity columns not found in #{accounts_table} table: #{column_list}
@@ -654,11 +877,11 @@ module Rodauth
       ERROR
     end
 
-    # Generate migration code for missing columns
+    # Generate migration code for missing external identity columns
     #
     # @param missing [Array<Symbol>] Array of missing column names
     # @return [String] Sequel migration code
-    def generate_migration_code(missing)
+    def generate_external_identity_migration_code(missing)
       lines = ["Sequel.migration do", "  up do", "    alter_table :#{accounts_table} do"]
 
       missing.each do |column|
@@ -681,6 +904,7 @@ module Rodauth
     # Provides helpful warnings if configuration might not work as expected
     def validate_account_select_inclusion!
       current_select = account_select
+      return unless current_select  # Skip if account_select not defined (e.g., no login feature)
 
       missing = []
       external_identity_columns_config.each do |column, config|

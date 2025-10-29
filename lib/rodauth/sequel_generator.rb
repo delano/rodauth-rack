@@ -149,9 +149,23 @@ module Rodauth
         columns.each do |col|
           # Map Ruby type symbol to Sequel column type
           column_type = map_column_type(col[:type])
-          null_option = col[:null] ? ", null: true" : ""
 
-          alter_block << "  add_column :#{col[:column]}, #{column_type}#{null_option}"
+          # Build options array
+          options = []
+          options << "null: #{col[:null]}" unless col[:null].nil?
+          options << "default: #{format_default_value(col[:default])}" if col[:default]
+          options << "unique: true" if col[:unique]
+          options << "size: #{col[:size]}" if col[:size]
+
+          options_str = options.empty? ? "" : ", #{options.join(', ')}"
+
+          alter_block << "  add_column :#{col[:column]}, #{column_type}#{options_str}"
+
+          # Add index if requested
+          if col[:index]
+            index_opts = col[:unique] ? ", unique: true" : ""
+            alter_block << "  add_index :#{col[:column]}#{index_opts}"
+          end
         end
 
         alter_block << "end"
@@ -232,7 +246,20 @@ module Rodauth
                          else String
                          end
 
-            add_column col[:column].to_sym, column_type, null: col[:null]
+            # Build column options
+            column_opts = {}
+            column_opts[:null] = col[:null] unless col[:null].nil?
+            column_opts[:default] = col[:default] if col[:default]
+            column_opts[:unique] = true if col[:unique]
+            column_opts[:size] = col[:size] if col[:size]
+
+            add_column col[:column].to_sym, column_type, column_opts
+
+            # Add index if requested
+            if col[:index]
+              index_opts = col[:unique] ? { unique: true } : {}
+              add_index col[:column].to_sym, index_opts
+            end
           end
         end
       end
@@ -440,6 +467,21 @@ module Rodauth
     # @return [String] Indented text
     def indent(text, spaces)
       text.lines.map { |line| line.strip.empty? ? line : (" " * spaces) + line }.join
+    end
+
+    # Format default value for Sequel migration code
+    #
+    # @param value [Object] Default value to format
+    # @return [String] Formatted value for migration code
+    def format_default_value(value)
+      case value
+      when Symbol then value.inspect
+      when String then value.inspect
+      when Numeric, TrueClass, FalseClass then value.to_s
+      when nil then "nil"
+      when Proc then "-> { #{value.call} }"  # Evaluate proc for migration
+      else value.inspect
+      end
     end
 
     # Map column type symbol to Sequel migration code representation
