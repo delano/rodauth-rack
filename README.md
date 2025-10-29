@@ -2,7 +2,8 @@
 
 Framework-agnostic utilities for [Rodauth](http://rodauth.jeremyevans.net) authentication. Provides external Rodauth features and Sequel migration generators.
 
-**Project Status**: Experimental learning project. Not published to RubyGems.
+> [!WARNING]
+> This project is in early alpha. APIs may change significantly. Not ready for prime time.
 
 ## Overview
 
@@ -28,7 +29,49 @@ bundle install
 
 ## Features
 
-### 1. Table Guard External Feature
+### 1. External Identity Feature
+
+Store external service identifiers in your accounts table with automatic helper methods.
+
+```ruby
+class RodauthApp < Roda
+  plugin :rodauth do
+    enable :external_identity
+
+    # Declare columns (names used as-is)
+    external_identity_column :stripe_customer_id
+    external_identity_column :redis_uuid
+    external_identity_column :elasticsearch_doc_id
+
+    # Configuration
+    external_identity_check_columns :autocreate  # Generate migration code
+  end
+end
+
+# Usage - helper methods match column names
+rodauth.stripe_customer_id   # => "cus_abc123"
+rodauth.redis_uuid           # => "550e8400-e29b-41d4-..."
+rodauth.elasticsearch_doc_id # => "doc_789xyz"
+```
+
+**Key Features:**
+
+- Declarative column configuration
+- Automatic helper method generation
+- Auto-inclusion in `account_select`
+- Column existence validation with migration code generation
+- Introspection API for debugging
+
+**Common Use Cases:**
+
+- Payment integration (Stripe customer IDs)
+- Session management (Redis keys)
+- Search indexing (Elasticsearch document IDs)
+- Federated authentication (Auth0 user IDs)
+
+**Documentation:** [docs/features/external-identity.md](docs/features/external-identity.md)
+
+### 2. Table Guard External Feature
 
 Validates that required database tables exist for enabled Rodauth features.
 
@@ -38,16 +81,18 @@ class RodauthApp < Roda
     enable :login, :logout, :otp
     enable :table_guard  # ← Add this
 
-    table_guard_mode :warn  # or :error, :silent
+    table_guard_mode :raise  # or :warn, :error, :halt, :silent
   end
 end
 ```
 
 **Modes:**
 
-- `:warn` - Print warnings about missing tables
-- `:error` - Raise error if tables are missing (good for production)
-- `:silent` - Disable checking
+- `:silent` / `:skip` / `nil` - Disable validation (debug log only)
+- `:warn` - Log warning message and continue execution
+- `:error` - Print distinctive message to error log but continue execution
+- `:raise` - Log error and raise `Rodauth::ConfigurationError` (recommended for production)
+- `:halt` / `:exit` - Log error and exit the process immediately
 - Block - Custom handler (see below)
 
 **Custom Handlers:**
@@ -56,9 +101,9 @@ end
 table_guard_mode do |missing|
   if Rails.env.production?
     Slack.notify("Missing tables: #{missing.map { |t| t[:table] }.join(', ')}")
-    :error  # Raise error
+    :raise  # Raise error
   else
-    :continue  # Just continue
+    :continue  # Just log and continue
   end
 end
 ```
@@ -81,7 +126,7 @@ rodauth.missing_tables
 # => [{method: :otp_keys_table, table: :account_otp_keys}, ...]
 ```
 
-### 2. Sequel Migration Generator
+### 3. Sequel Migration Generator
 
 Generate database migrations for Rodauth features.
 
@@ -173,33 +218,12 @@ bin/console
 
 ## Documentation
 
-### Guides
-
-- **[Multi-Datastore Authentication](docs/guides/multi-datastore-auth.md)** - Patterns for synchronizing Rodauth (SQL) with application datastores (Redis, NoSQL)
-  - Simple sync, idempotent sync, and event-driven approaches
-  - Decision flowchart and CAP theorem tradeoffs
-  - Testing strategies and security considerations
-
+- **[External Identity Feature](docs/features/external-identity.md)** - Track external service identifiers
+- **[Table Guard Feature](docs/features/table-guard.md)** - Validate required database tables
 - **[Sequel Migrations](docs/sequel-migrations.md)** - Integrating table_guard with Sequel migrations
-  - Idempotent migration patterns
-  - Environment-specific configuration
-  - Using table_guard to validate external datastores
-
-### Examples
-
-- **[OneTimeSecret Sync Pattern](docs/examples/onetimesecret-sync-pattern.md)** - Production-grade session synchronization
-  - Real-world implementation with idempotency, graceful degradation, and correlation tracking
-  - Lessons learned and performance characteristics
-
-### API Reference
-
 - **[Rodauth Feature API](docs/rodauth-features-api.md)** - Complete DSL reference for feature development
-- **[Rodauth Internals](docs/rodauth-internals.rdoc)** - Object model and metaprogramming patterns
+- **[Rodauth Internals](docs/references/rodauth-internals.rdoc)** - Object model and metaprogramming patterns
 - **[Mail Configuration](docs/rodauth-mail.md)** - Email and SMTP setup
-
-### Architecture Decisions
-
-- **[ADR 001: No session_glue Feature](docs/adr/001-no-session-glue-feature.md)** - Why multi-datastore sync is application-level, not framework-level
 
 ## Related Projects
 

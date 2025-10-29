@@ -57,17 +57,44 @@ RSpec.describe "TableGuard Simple" do
     expect(app).not_to be_nil
   end
 
-  it "raises error in error mode with missing tables" do
+  it "raises error in raise mode with missing tables" do
     expect do
       create_roda_app do
         enable :login, :logout
         enable :table_guard
-        table_guard_mode :error
+        table_guard_mode :raise
       end
     end.to raise_error(Rodauth::ConfigurationError) do |error|
       expect(error.message).to include("Missing required database tables")
       expect(error.message).to include("accounts")
     end
+  end
+
+  it "succeeds in raise mode when all tables exist" do
+    create_accounts_table(db)
+
+    app = create_roda_app do
+      enable :login, :logout
+      enable :table_guard
+      table_guard_mode :raise
+    end
+
+    expect(app).not_to be_nil
+  end
+
+  it "logs error but continues in error mode with missing tables" do
+    # Capture stderr to verify error was logged
+    stderr_output = capture_warnings do
+      app = create_roda_app do
+        enable :login, :logout
+        enable :table_guard
+        table_guard_mode :error
+      end
+
+      expect(app).not_to be_nil
+    end
+
+    expect(stderr_output).to include("CRITICAL: Missing Rodauth tables")
   end
 
   it "succeeds in error mode when all tables exist" do

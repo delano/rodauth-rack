@@ -19,7 +19,7 @@ RSpec.describe "TableGuard Integration" do
     end
   end
 
-  it "raises error during configuration in error mode" do
+  it "raises error during configuration in raise mode" do
     db = Sequel.sqlite
 
     expect do
@@ -28,7 +28,7 @@ RSpec.describe "TableGuard Integration" do
           self.db db
           enable :login, :logout
           enable :table_guard
-          table_guard_mode :error
+          table_guard_mode :raise
         end
 
         route do |r|

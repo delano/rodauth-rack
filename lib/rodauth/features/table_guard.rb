@@ -293,11 +293,17 @@ module Rodauth
       when :warn
         rodauth_warn(build_missing_tables_message(missing))
 
-      when :error, :raise
+      when :error
+        # Print distinctive message to error log but continue execution
+        rodauth_error(build_missing_tables_error(missing))
+
+      when :raise
+        # Let the error propagate up
         rodauth_error(build_missing_tables_error(missing))
         raise Rodauth::ConfigurationError, build_missing_tables_message(missing)
 
       when :halt, :exit
+        # Exit the process early
         rodauth_error(build_missing_tables_error(missing))
         exit(1)
 

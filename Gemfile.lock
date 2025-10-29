@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rodauth-tools (0.1.0)
+    rodauth-tools (0.2.0)
       dry-inflector (~> 1.1)
       rack (~> 3.2)
       roda (~> 3.96)
@@ -170,6 +170,8 @@ GEM
     parser (3.3.9.0)
       ast (~> 2.4.1)
       racc
+    pastel (0.8.0)
+      tty-color (~> 0.5)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -290,7 +292,19 @@ GEM
       bindata (~> 2.4)
       openssl (> 2.0)
       openssl-signature_algorithm (~> 1.0)
+    tryouts (3.7.1)
+      concurrent-ruby (~> 1.0, < 2)
+      irb
+      minitest (~> 5.0)
+      pastel (~> 0.8)
+      prism (~> 1.0)
+      rspec (>= 3.0, < 5.0)
+      tty-cursor (~> 0.7)
+      tty-screen (~> 0.8)
     tsort (0.2.0)
+    tty-color (0.6.0)
+    tty-cursor (0.7.1)
+    tty-screen (0.8.2)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.2.0)
@@ -339,6 +353,7 @@ DEPENDENCIES
   sequel-activerecord_connection (~> 2.0)
   sqlite3 (~> 2.0)
   tilt (~> 2.4)
+  tryouts (~> 3.0)
   warning
   webauthn
 

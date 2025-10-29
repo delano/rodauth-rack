@@ -16,6 +16,7 @@ if defined?(Rodauth)
   require_relative "table_inspector"
   require_relative "sequel_generator"
   require_relative "features/table_guard"
+  require_relative "features/external_identity"
 end
 
 module Rodauth

@@ -19,9 +19,8 @@
   // Automatically fix violations when possible
   "fix": true,
 
-  // Files to include
-  "globs": ["**/*.md"],
-
   // Files/directories to ignore
+  // Note: When run via pre-commit, only staged files are checked.
+  // The globs pattern is not needed as pre-commit passes filenames automatically.
   "ignores": ["node_modules", ".serena"],
 }
