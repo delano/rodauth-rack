@@ -134,6 +134,56 @@ end
 - Real `Sequel::Database` object can be passed for actual migrations
 - Supports PostgreSQL, MySQL, and SQLite database types
 
+### Hidden Tables Architecture
+
+**Problem:** Some tables are created in ERB templates without corresponding `*_table` methods in Rodauth features.
+
+**Example from base.erb:**
+
+```ruby
+# base.erb creates THREE tables:
+create_table(:account_statuses)        # NO METHOD - Hidden!
+create_table(:account_password_hashes) # NO METHOD - Hidden!
+create_table(:accounts)                # Has accounts_table method ✓
+```
+
+**Why This Happens:**
+
+- `account_statuses` - Lookup table for status values (Unverified=1, Verified=2, Closed=3). No method because users configure status IDs directly via `account_open_status_value`, etc.
+- `account_password_hashes` - Separate table for security. Method is `account_password_hash_table` (singular), but ERB uses pluralized form based on `table_prefix`.
+
+#### Solution: TemplateInspector Module
+
+`lib/rodauth/template_inspector.rb` extracts table names directly from ERB templates by:
+
+1. Creating minimal binding context with `table_prefix`, `pluralize`, and mock `db`
+2. Evaluating ERB templates to render actual Ruby code
+3. Parsing rendered code for `create_table()` calls using regex
+4. Returning complete list of tables, including hidden ones
+
+**Usage:**
+
+```ruby
+# Extract all tables for a feature
+tables = TemplateInspector.extract_tables_from_template(
+  :base,
+  table_prefix: 'account'
+)
+# => [:account_statuses, :account_password_hashes, :accounts]
+
+# Get tables for multiple features
+all_tables = TemplateInspector.all_tables_for_features(
+  [:base, :verify_account, :lockout],
+  table_prefix: 'account'
+)
+```
+
+**Impact on DROP Operations:**
+
+Before TemplateInspector, `generate_drop_statements` only dropped dynamically discovered tables, missing hidden ones. Now it extracts the complete table list from ERB templates, ensuring all tables are properly dropped in correct dependency order.
+
+**Key Insight:** ERB templates are the single source of truth for table schemas. By extracting information FROM templates instead of duplicating it in Ruby constants, we maintain consistency and eliminate hardcoded mappings.
+
 ## Testing Patterns
 
 **RSpec Structure:**
