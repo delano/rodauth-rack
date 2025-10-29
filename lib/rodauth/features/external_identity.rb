@@ -266,35 +266,6 @@ module Rodauth
     # Note: external_identity_column is defined in configuration_module_eval above
     # It's available during configuration but not as an instance method
 
-    # Override account_select to automatically include declared columns
-    #
-    # Ensures external identity columns are fetched with the account
-    # unless explicitly disabled via include_in_select: false
-    def account_select
-      # Call defined?(super) safely wraps the super call
-      cols = if defined?(super)
-               super
-             else
-               [:id]  # Default if no parent implementation
-             end
-
-      # Normalize to array
-      cols = case cols
-             when Array then cols.dup
-             when nil then []
-             else [cols]
-             end
-
-      # Add external identity columns (idempotent via include? check)
-      external_identity_columns_config.each do |_name, config|
-        if config[:include_in_select]
-          cols << config[:column] unless cols.include?(config[:column])
-        end
-      end
-
-      cols
-    end
-
     # Get list of all declared external identity column names
     #
     # @return [Array<Symbol>] List of column names
@@ -381,12 +352,15 @@ module Rodauth
                           nil  # Unknown if can't check
                         end
 
+        # Check if column is in select (nil means select all)
+        in_select = current_select.nil? ? true : current_select.include?(column)
+
         {
           column: column,
           method: method_name,
           value: value,
           present: !value.nil?,
-          in_select: current_select.include?(column),
+          in_select: in_select,
           in_account: account&.key?(column) || false,
           column_exists: column_exists
         }
@@ -598,6 +572,9 @@ module Rodauth
     def post_configure
       super if defined?(super)
 
+      # Wrap account_select to add external identity columns
+      setup_account_select_wrapper
+
       # Check columns based on configuration
       case external_identity_check_columns
       when true
@@ -617,6 +594,47 @@ module Rodauth
     end
 
     private
+
+    # Wrap account_select method to add external identity columns
+    #
+    # This runs in post_configure after all configuration is complete.
+    # It wraps the existing account_select method (whether default nil or
+    # user-configured) to add our columns.
+    def setup_account_select_wrapper
+      # Get current account_select value at configuration time
+      # (calling the method gets the configured value)
+      current_select = account_select
+
+      # Get columns to add
+      columns_to_add = external_identity_columns_config.select { |_name, config|
+        config[:include_in_select]
+      }.keys
+
+      # Return early if no columns to add
+      return if columns_to_add.empty?
+
+      # Redefine account_select on the singleton class to wrap it
+      self.class.send(:define_method, :account_select) do
+        # Use the captured value from configuration time
+        cols = current_select
+
+        # If configured value is nil, preserve that (select all columns)
+        return nil if cols.nil?
+
+        # Normalize to array
+        cols = case cols
+               when Array then cols.dup
+               else [cols]
+               end
+
+        # Add external identity columns (idempotent via include? check)
+        columns_to_add.each do |column|
+          cols << column unless cols.include?(column)
+        end
+
+        cols
+      end
+    end
 
     # Generate external identities for columns with before_create_account callbacks
     #
@@ -793,11 +811,11 @@ module Rodauth
     # Checks in order: nested sequel hash, flat options, default to String
     #
     # @param config [Hash] Column configuration
-    # @return [Symbol] Column type
+    # @return [Class] Column type (Integer, String, etc.)
     def extract_column_type(config)
       config.dig(:options, :sequel, :type) ||
       config.dig(:options, :type) ||
-      :String
+      String
     end
 
     # Extract column null setting from configuration
