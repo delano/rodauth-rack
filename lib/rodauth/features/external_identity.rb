@@ -595,7 +595,6 @@ module Rodauth
 
       missing.each do |column|
         # Determine column type - default to String for external IDs
-        # TODO: Could make this configurable per column in future
         column_def = {
           name: column,
           type: :String,
@@ -603,18 +602,31 @@ module Rodauth
           feature: :external_identity
         }
 
-        # If table_guard has a method to register additional columns, use it
-        # Otherwise, we'll need to ensure table_guard can discover these
-        if respond_to?(:register_required_column, true)
-          register_required_column(accounts_table, column_def)
-        end
+        # Register column with table_guard
+        # table_guard will validate and optionally create based on its configuration
+        register_required_column(accounts_table, column_def)
       end
 
       # Trigger table_guard's validation which will handle creation/logging
       # based on table_guard_mode and table_guard_sequel_mode
-      if respond_to?(:check_required_tables!, true)
-        # Let table_guard know we need to check again
-        # This will cause it to generate ALTER TABLE statements if in :create mode
+      #
+      # Since external_identity's post_configure runs after table_guard's,
+      # we need to explicitly trigger the checking again now that we've
+      # registered our columns
+      #
+      # Check if we should handle columns: either validation is enabled OR sequel_mode is set
+      # (sequel_mode works even in silent mode since it indicates intent to create/generate)
+      if should_check_tables? || table_guard_sequel_mode
+        # Get the missing columns we just registered
+        missing_cols = missing_columns
+        return if missing_cols.empty?
+
+        # Handle columns according to table_guard's configuration
+        # (skip validation in silent mode, but allow sequel operations)
+        handle_column_guard_mode(missing_cols) if should_check_tables?
+
+        # Generate/create columns if sequel mode is configured
+        handle_sequel_generation([], missing_cols) if table_guard_sequel_mode
       end
     end
 
