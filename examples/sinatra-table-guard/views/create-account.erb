@@ -1,0 +1,28 @@
+<h2>Create Account</h2>
+
+<form method="post" action="<%= rodauth.create_account_path %>">
+  <%= rodauth.csrf_tag %>
+
+  <div class="form-group">
+    <label for="login">Email:</label>
+    <input type="email" id="login" name="login" value="<%= rodauth.param('login') %>" autofocus required>
+  </div>
+
+  <div class="form-group">
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
+  </div>
+
+  <% if rodauth.require_password_confirmation? %>
+  <div class="form-group">
+    <label for="password-confirm">Confirm Password:</label>
+    <input type="password" id="password-confirm" name="password-confirm" required>
+  </div>
+  <% end %>
+
+  <div class="form-group">
+    <input type="submit" value="Create Account">
+  </div>
+</form>
+
+<p>Already have an account? <a href="/login">Login</a></p>

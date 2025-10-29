@@ -1,0 +1,11 @@
+<h2>Logout</h2>
+
+<form method="post" action="<%= rodauth.logout_path %>">
+  <%= rodauth.csrf_tag %>
+
+  <p>Are you sure you want to logout?</p>
+
+  <div class="form-group">
+    <input type="submit" value="Logout">
+  </div>
+</form>

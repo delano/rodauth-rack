@@ -7,10 +7,10 @@ require "rodauth"
 require "roda"
 require "irb"
 
-# Load rodauth-rack
-require_relative "../lib/rodauth/rack"
+# Load rodauth-tools
+require_relative "../lib/rodauth/tools"
 
-puts "\n=== Rodauth::Rack Console ==="
+puts "\n=== Rodauth::Tools Console ==="
 puts "Utilities for Rodauth: table_guard feature + Sequel migration generator\n"
 
 # Helper to create a test database with tables

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rodauth-rack (0.1.0)
+    rodauth-tools (0.1.0)
       dry-inflector (~> 1.1)
       rack (~> 3.2)
       roda (~> 3.96)
@@ -323,12 +323,13 @@ DEPENDENCIES
   bcrypt (~> 3.1)
   bundler-audit
   capybara
+  dry-inflector
   irb
   jwt (~> 3.1)
   rack-test (~> 2.1)
   rails (>= 6.0)
   rake (~> 13.0)
-  rodauth-rack!
+  rodauth-tools!
   rotp
   rqrcode
   rspec (~> 3.0)

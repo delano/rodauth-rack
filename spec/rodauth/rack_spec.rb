@@ -1,21 +1,11 @@
 # frozen_string_literal: true
 
-RSpec.describe Rodauth::Rack do
+RSpec.describe Rodauth::Tools do
   it "has a version number" do
-    expect(Rodauth::Rack::VERSION).not_to be_nil
+    expect(Rodauth::Tools::VERSION).not_to be_nil
   end
 
   it "has an Error class" do
-    expect(Rodauth::Rack::Error).to be < StandardError
-  end
-
-  describe "Rack compatibility" do
-    it "delegates release to Rack gem" do
-      expect(Rodauth::Rack.release).to eq(::Rack.release)
-    end
-
-    it "provides release_version method" do
-      expect(Rodauth::Rack).to respond_to(:release_version)
-    end
+    expect(Rodauth::Tools::Error).to be < StandardError
   end
 end
