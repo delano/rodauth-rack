@@ -827,4 +827,354 @@ RSpec.describe "Rodauth external_identity feature" do
       expect(rodauth.external_identity_check_columns).to eq(:autocreate)
     end
   end
+
+  describe "Layer 2: Lifecycle callbacks" do
+    describe "formatter callback" do
+      it "formats value when accessed via helper method" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            formatter: ->(v) { v.to_s.strip.downcase }
+        end
+
+        # Create an account with non-normalized value
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "  CUS_ABC123  "
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        # Helper method should return formatted value
+        expect(rodauth.stripe_customer_id).to eq("cus_abc123")
+      end
+
+      it "applies strip formatting" do
+        create_accounts_table_with_columns(columns: [:redis_uuid])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :redis_uuid,
+            formatter: ->(v) { v.to_s.strip }
+        end
+
+        account_record = db[:accounts].insert(
+          email: "user@example.com",
+          redis_uuid: "  550e8400-e29b-41d4-a716-446655440000  "
+        )
+        account = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account)
+
+        expect(rodauth.redis_uuid).to eq("550e8400-e29b-41d4-a716-446655440000")
+      end
+
+      it "applies downcase formatting" do
+        create_accounts_table_with_columns(columns: [:external_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :external_id,
+            formatter: ->(v) { v.downcase }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          external_id: "ABC-123-XYZ"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect(rodauth.external_id).to eq("abc-123-xyz")
+      end
+
+      it "chains multiple formatting operations" do
+        create_accounts_table_with_columns(columns: [:api_key])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :api_key,
+            formatter: ->(v) { v.to_s.strip.downcase.gsub(/[^a-z0-9]/, '') }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          api_key: "  API-KEY-123  "
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect(rodauth.api_key).to eq("apikey123")
+      end
+
+      it "returns nil when value is nil" do
+        create_accounts_table_with_columns(columns: [:optional_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :optional_id,
+            formatter: ->(v) { v.to_s.strip }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          optional_id: nil
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        # Should not apply formatter to nil
+        expect(rodauth.optional_id).to be_nil
+      end
+
+      it "returns nil when account is nil" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            formatter: ->(v) { v.to_s.strip }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        # No account set
+
+        expect(rodauth.stripe_customer_id).to be_nil
+      end
+
+      it "works without formatter (backward compatibility)" do
+        create_accounts_table_with_columns(columns: [:legacy_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :legacy_id
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          legacy_id: "  LEGACY  "
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        # Should return raw value without formatting
+        expect(rodauth.legacy_id).to eq("  LEGACY  ")
+      end
+
+      it "supports custom formatter logic" do
+        create_accounts_table_with_columns(columns: [:phone_number])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :phone_number,
+            formatter: ->(v) {
+              # Remove all non-digits, add +1 prefix
+              digits = v.gsub(/\D/, '')
+              "+1#{digits}"
+            }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          phone_number: "(555) 123-4567"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect(rodauth.phone_number).to eq("+15551234567")
+      end
+    end
+
+    describe "validator callback" do
+      it "validates value format successfully" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            validator: ->(v) { v.start_with?('cus_') && v.length >= 10 }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Valid value should pass ("cus_abc123" is exactly 10 chars)
+        expect(rodauth.validate_external_identity(:stripe_customer_id, "cus_abc123")).to be true
+      end
+
+      it "raises ArgumentError for invalid format" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            validator: ->(v) { v.start_with?('cus_') }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Invalid value should raise error
+        expect {
+          rodauth.validate_external_identity(:stripe_customer_id, "invalid")
+        }.to raise_error(ArgumentError, /Invalid format for stripe_customer_id/)
+      end
+
+      it "applies formatter before validation" do
+        create_accounts_table_with_columns(columns: [:api_key])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :api_key,
+            formatter: ->(v) { v.to_s.strip.downcase },
+            validator: ->(v) { v.start_with?('api_') }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Formatter should run first (uppercase -> lowercase)
+        expect(rodauth.validate_external_identity(:api_key, "  API_KEY123  ")).to be true
+      end
+
+      it "skips validation for nil values" do
+        create_accounts_table_with_columns(columns: [:optional_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :optional_id,
+            validator: ->(v) { v.length > 5 }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # nil should not be validated
+        expect(rodauth.validate_external_identity(:optional_id, nil)).to be true
+      end
+
+      it "returns true when no validator configured" do
+        create_accounts_table_with_columns(columns: [:legacy_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :legacy_id
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Should always pass without validator
+        expect(rodauth.validate_external_identity(:legacy_id, "anything")).to be true
+      end
+
+      it "validates complex format rules" do
+        create_accounts_table_with_columns(columns: [:phone_number])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :phone_number,
+            validator: ->(v) {
+              # Must be exactly 12 characters (+1 + 10 digits)
+              v =~ /^\+1\d{10}$/
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        expect(rodauth.validate_external_identity(:phone_number, "+15551234567")).to be true
+        expect {
+          rodauth.validate_external_identity(:phone_number, "555-1234")
+        }.to raise_error(ArgumentError)
+      end
+
+      it "validates all configured external identities" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :redis_uuid])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            validator: ->(v) { v.start_with?('cus_') }
+          external_identity_column :redis_uuid,
+            validator: ->(v) { v.length == 36 }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "cus_abc123",
+          redis_uuid: "550e8400-e29b-41d4-a716-446655440000"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        results = rodauth.validate_all_external_identities
+        expect(results[:stripe_customer_id]).to be true
+        expect(results[:redis_uuid]).to be true
+      end
+
+      it "raises on first validation failure" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :redis_uuid])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            validator: ->(v) { v.start_with?('cus_') }
+          external_identity_column :redis_uuid,
+            validator: ->(v) { v.length == 36 }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "invalid",  # Will fail validation
+          redis_uuid: "550e8400-e29b-41d4-a716-446655440000"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect {
+          rodauth.validate_all_external_identities
+        }.to raise_error(ArgumentError, /Invalid format for stripe_customer_id/)
+      end
+
+      it "skips columns without validators in validate_all" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :legacy_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            validator: ->(v) { v.start_with?('cus_') }
+          external_identity_column :legacy_id
+          # No validator for legacy_id
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "cus_abc123",
+          legacy_id: "anything_goes"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        results = rodauth.validate_all_external_identities
+        expect(results[:stripe_customer_id]).to be true
+        expect(results).not_to have_key(:legacy_id)  # Not included
+      end
+    end
+  end
 end

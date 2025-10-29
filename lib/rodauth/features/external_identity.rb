@@ -5,11 +5,19 @@
 # Enable with:
 #   enable :external_identity
 #
-# Configuration:
+# Configuration (Layer 1 - Basic):
 #   external_identity_column :stripe_customer_id
 #   external_identity_column :redis_uuid, method_name: :redis_session_key
 #   external_identity_on_conflict :warn  # :error, :warn, :skip
 #   external_identity_check_columns true  # true (default), false, or :autocreate
+#
+# Configuration (Layer 2 - Extended Features):
+#   external_identity_column :stripe_customer_id,
+#     before_create_account: -> { Stripe::Customer.create(email: account[:email]).id },
+#     formatter: -> (v) { v.to_s.strip.downcase },
+#     validator: -> (v) { v.start_with?('cus_') },
+#     verifier: -> (id) { Stripe::Customer.retrieve(id) && !customer.deleted? },
+#     handshake: -> (id, token) { session[:oauth_state] == token }
 #
 # Usage:
 #   rodauth.stripe_customer_id  # Auto-generated helper method
@@ -50,6 +58,12 @@ module Rodauth
       :external_identity_helper_methods,
       :external_identity_column?,
       :external_identity_status
+    )
+
+    # Layer 2: Validation methods
+    auth_methods(
+      :validate_external_identity,
+      :validate_all_external_identities
     )
 
     # Use auth_cached_method for column configuration
@@ -94,12 +108,26 @@ module Rodauth
           method_name: method_name,
           include_in_select: options.fetch(:include_in_select, true),
           validate: options[:validate] || false,
+          # Layer 2: Lifecycle callbacks
+          before_create_account: options[:before_create_account],
+          formatter: options[:formatter],
+          validator: options[:validator],
+          verifier: options[:verifier],
+          handshake: options[:handshake],
           options: options
         }
 
         # Define the helper method on the Auth class
         @auth.send(:define_method, method_name) do
-          account ? account[column] : nil
+          value = account ? account[column] : nil
+
+          # Apply formatter if present (Layer 2)
+          config = external_identity_columns_config[column]
+          if config && config[:formatter] && value
+            instance_exec(value, &config[:formatter])
+          else
+            value
+          end
         end
 
         nil
@@ -235,6 +263,73 @@ module Rodauth
           column_exists: column_exists
         }
       end
+    end
+
+    # Validate a specific external identity column value
+    #
+    # Applies formatter (if configured) then validator (if configured).
+    # Returns true if valid or no validator configured.
+    # Raises ArgumentError if validation fails.
+    #
+    # @param column [Symbol] Column name
+    # @param value [Object] Value to validate
+    # @return [Boolean] True if valid
+    # @raise [ArgumentError] If validation fails
+    #
+    # @example
+    #   validate_external_identity(:stripe_customer_id, "cus_123")  # => true
+    #   validate_external_identity(:stripe_customer_id, "invalid") # => ArgumentError
+    def validate_external_identity(column, value)
+      config = external_identity_columns_config[column]
+      return true unless config
+      return true if value.nil? # nil values are not validated
+
+      # Apply formatter if present
+      formatted_value = if config[:formatter]
+                          instance_exec(value, &config[:formatter])
+                        else
+                          value
+                        end
+
+      # Apply validator if present
+      if config[:validator]
+        is_valid = instance_exec(formatted_value, &config[:validator])
+        unless is_valid
+          raise ArgumentError, "Invalid format for #{column}: #{value.inspect}"
+        end
+      end
+
+      true
+    end
+
+    # Validate all configured external identity columns
+    #
+    # Checks all columns that have validators configured.
+    # Returns hash of column => validation result.
+    #
+    # @return [Hash<Symbol, Boolean>] Results per column
+    #
+    # @example
+    #   validate_all_external_identities
+    #   # => {stripe_customer_id: true, redis_uuid: true}
+    def validate_all_external_identities
+      results = {}
+      external_identity_columns_config.each do |column, config|
+        next unless config[:validator]
+
+        value = account ? account[column] : nil
+        next if value.nil? # Skip nil values
+
+        begin
+          validate_external_identity(column, value)
+          results[column] = true
+        rescue ArgumentError => e
+          results[column] = false
+          # Re-raise to fail the operation
+          raise e
+        end
+      end
+      results
     end
 
     # Validation hook - runs after configuration is complete
