@@ -1,6 +1,16 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the remember me feature
-create_table :<%= table_prefix %>_remember_keys do
+deadline_opts = proc do |days|
+  if db.database_type == :mysql
+    {null: false}
+  else
+    {null: false, default: Sequel.date_add(Sequel::CURRENT_TIMESTAMP, days: days)}
+  end
+end
+
+create_table(:<%= table_prefix %>_remember_keys) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   String :key, null: false
-  DateTime :deadline, null: false
+  DateTime :deadline, deadline_opts[14]
 end

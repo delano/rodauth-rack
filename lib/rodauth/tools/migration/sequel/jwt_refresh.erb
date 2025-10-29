@@ -1,8 +1,18 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the jwt refresh feature
-create_table :<%= table_prefix %>_jwt_refresh_keys do
+deadline_opts = proc do |days|
+  if db.database_type == :mysql
+    {null: false}
+  else
+    {null: false, default: Sequel.date_add(Sequel::CURRENT_TIMESTAMP, days: days)}
+  end
+end
+
+create_table(:<%= table_prefix %>_jwt_refresh_keys) do
   primary_key :id, type: :Bignum
   foreign_key :<%= table_prefix %>_id, :<%= pluralize(table_prefix) %>, null: false, type: :Bignum
   String :key, null: false
-  DateTime :deadline, null: false
-  index :<%= table_prefix %>_id
+  DateTime :deadline, deadline_opts[1]
+  index :<%= table_prefix %>_id, name: :<%= table_prefix %>_jwt_rk_<%= table_prefix %>_id_idx
 end

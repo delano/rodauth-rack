@@ -1,5 +1,7 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the single session feature
-create_table :<%= table_prefix %>_session_keys do
+create_table(:<%= table_prefix %>_session_keys) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   String :key, null: false
 end

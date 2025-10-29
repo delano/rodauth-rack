@@ -1,9 +1,11 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the webauthn feature
-create_table :<%= table_prefix %>_webauthn_user_ids do
+create_table(:<%= table_prefix %>_webauthn_user_ids) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   String :webauthn_id, null: false
 end
-create_table :<%= table_prefix %>_webauthn_keys do
+create_table(:<%= table_prefix %>_webauthn_keys) do
   foreign_key :<%= table_prefix %>_id, :<%= pluralize(table_prefix) %>, type: :Bignum
   String :webauthn_id
   String :public_key, null: false

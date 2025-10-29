@@ -1,5 +1,7 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the otp_unlock feature
-create_table :<%= table_prefix %>_otp_unlocks do
+create_table(:<%= table_prefix %>_otp_unlocks) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   Integer :num_successes, null: false, default: 1
   Time :next_auth_attempt_after, null: false, default: Sequel::CURRENT_TIMESTAMP

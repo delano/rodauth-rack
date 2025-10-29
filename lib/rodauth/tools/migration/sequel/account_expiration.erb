@@ -1,5 +1,7 @@
+<%# lib/rodauth/tools/migration/sequel/audit_logging.erb %>
+
 # Used by the account expiration feature
-create_table :<%= table_prefix %>_activity_times do
+create_table(:<%= table_prefix %>_activity_times) do
   foreign_key :id, :<%= pluralize(table_prefix) %>, primary_key: true, type: :Bignum
   DateTime :last_activity_at, null: false
   DateTime :last_login_at, null: false
