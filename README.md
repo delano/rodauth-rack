@@ -28,7 +28,51 @@ bundle install
 
 ## Features
 
-### 1. Table Guard External Feature
+### 1. External Identity Feature
+
+Track external service identifiers (Stripe customer IDs, Redis keys, NoSQL document IDs) in your Rodauth accounts table with automatic helper method generation.
+
+```ruby
+class RodauthApp < Roda
+  plugin :rodauth do
+    enable :login, :external_identity
+
+    # Declare external identity columns
+    external_identity_column :stripe, :stripe_customer_id
+    external_identity_column :redis, :redis_session_key
+    external_identity_column :elasticsearch, :es_document_id
+  end
+
+  route do |r|
+    r.rodauth
+    rodauth.check
+
+    # Use generated helper methods
+    stripe_id = rodauth.account_stripe_id        # => "cus_abc123"
+    redis_key = rodauth.account_redis_id         # => "session:uuid"
+    es_doc = rodauth.account_elasticsearch_id    # => "doc_456"
+  end
+end
+```
+
+**Key Features:**
+
+- Automatic helper method generation (e.g., `account_stripe_id`)
+- Auto-includes columns in `account_select` for eager loading
+- Introspection API for debugging and testing
+- Optional validation of column existence
+- Graceful nil handling when account not loaded
+
+**Common Use Cases:**
+
+- Stripe customer ID for subscription management
+- Redis session keys for distributed session tracking
+- NoSQL document IDs (MongoDB, Elasticsearch, Cassandra)
+- External service correlation IDs (Auth0, Firebase, etc.)
+
+**Documentation:** [docs/features/external-identity.md](docs/features/external-identity.md)
+
+### 2. Table Guard External Feature
 
 Validates that required database tables exist for enabled Rodauth features.
 
@@ -81,7 +125,7 @@ rodauth.missing_tables
 # => [{method: :otp_keys_table, table: :account_otp_keys}, ...]
 ```
 
-### 2. Sequel Migration Generator
+### 3. Sequel Migration Generator
 
 Generate database migrations for Rodauth features.
 
