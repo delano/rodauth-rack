@@ -57,6 +57,40 @@ module Rodauth
           .join("\n")
       end
 
+      # Execute CREATE TABLE operations directly against the database
+      #
+      # This evaluates the ERB templates and executes the resulting
+      # Sequel migration code against the provided database connection.
+      #
+      # @param db [Sequel::Database] Database connection
+      # @return [void]
+      def execute_create_tables(db)
+        # Update the db reference for template binding
+        @db = db
+
+        # Generate migration code from ERB templates
+        migration_code = generate
+
+        # Load Sequel's migration extension
+        require 'sequel/extensions/migration'
+
+        # Wrap in Sequel.migration block and execute
+        # NOTE: Using eval here is appropriate because:
+        # 1. The code is generated from our own trusted ERB templates
+        # 2. This is how Sequel migrations work - they're Ruby DSL code
+        # 3. The alternative would require re-implementing Sequel's migration DSL
+        migration = eval(<<~RUBY, binding, __FILE__, __LINE__ + 1)
+          Sequel.migration do
+            up do
+              #{migration_code}
+            end
+          end
+        RUBY
+
+        # Apply the migration
+        migration.apply(db, :up)
+      end
+
       # Get the migration name
       #
       # @return [String] Migration name
@@ -65,6 +99,15 @@ module Rodauth
         parts << prefix if prefix && prefix != 'account'
         parts.concat(features)
         parts.join('_')
+      end
+
+      # Check if an ERB template exists for a given feature
+      #
+      # @param feature [Symbol] Feature name
+      # @return [Boolean] True if template exists
+      def self.template_exists?(feature)
+        template_path = File.join(__dir__, 'migration', 'sequel', "#{feature}.erb")
+        File.exist?(template_path)
       end
 
       private
