@@ -7,7 +7,7 @@ require "rodauth"
 require "roda"
 require "irb"
 
-# Load rodauth-rack
+# Load rodauth-tools
 require_relative "../lib/rodauth/tools"
 
 puts "\n=== Rodauth::Tools Console ==="

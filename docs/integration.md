@@ -498,7 +498,7 @@ rails generate rodauth:install
 
 ## What This Library Provides
 
-This `rodauth-rack` library provides:
+This `rodauth-tools` library provides:
 
 1. **External Rodauth Features** - Like `table_guard` for validating database setup:
 

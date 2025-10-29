@@ -1,4 +1,4 @@
-# rodauth-rack.gemspec
+# rodauth-tools.gemspec
 
 require_relative 'lib/rodauth/tools/version'
 

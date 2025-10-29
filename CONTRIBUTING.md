@@ -1,14 +1,14 @@
-# Contributing to rodauth-rack
+# Contributing to rodauth-tools
 
-Thank you for your interest in contributing to rodauth-rack!
+Thank you for your interest in contributing to rodauth-tools!
 
 ## Development Setup
 
 1. Fork and clone the repository:
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/rodauth-rack.git
-   cd rodauth-rack
+   git clone https://github.com/YOUR_USERNAME/rodauth-tools.git
+   cd rodauth-tools
    ```
 
 2. Install dependencies:

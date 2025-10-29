@@ -28,5 +28,5 @@ group :development do
   gem "pry", "~> 0.14"
 end
 
-# Use local rodauth-rack if developing
-# gem "rodauth-rack", path: "../.."
+# Use local rodauth-tools if developing
+# gem "rodauth-tools", path: "../.."

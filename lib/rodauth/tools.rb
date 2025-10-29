@@ -11,7 +11,7 @@ require_relative "tools/version"
 require_relative "tools/migration"
 require_relative "tools/console_helpers"
 
-# Load rodauth-rack utilities (only if Rodauth is available)
+# Load rodauth-tools utilities (only if Rodauth is available)
 if defined?(Rodauth)
   require_relative "table_inspector"
   require_relative "sequel_generator"

@@ -21,8 +21,8 @@ This is NOT a framework adapter. For framework integration, use:
 Clone this repository:
 
 ```bash
-git clone https://github.com/delano/rodauth-rack
-cd rodauth-rack
+git clone https://github.com/delano/rodauth-tools
+cd rodauth-tools
 bundle install
 ```
 
