@@ -1176,5 +1176,199 @@ RSpec.describe "Rodauth external_identity feature" do
         expect(results).not_to have_key(:legacy_id)  # Not included
       end
     end
+
+    describe "before_create_account callback" do
+      it "generates value during account creation" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        counter = 0
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            before_create_account: -> { counter += 1; "cus_generated_#{counter}" }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        # Simulate account creation
+        rodauth.before_create_account
+
+        expect(rodauth.account[:stripe_customer_id]).to eq("cus_generated_1")
+      end
+
+      it "skips generation if value already set" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        generator_called = false
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            before_create_account: -> { generator_called = true; "cus_new" }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, { stripe_customer_id: "cus_existing" })
+
+        rodauth.before_create_account
+
+        # Should NOT call generator, should keep existing value
+        expect(generator_called).to be false
+        expect(rodauth.account[:stripe_customer_id]).to eq("cus_existing")
+      end
+
+      it "applies formatter to generated value" do
+        create_accounts_table_with_columns(columns: [:api_key])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :api_key,
+            before_create_account: -> { "  GENERATED_KEY  " },
+            formatter: ->(v) { v.strip.downcase }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        rodauth.before_create_account
+
+        expect(rodauth.account[:api_key]).to eq("generated_key")
+      end
+
+      it "validates generated value" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            before_create_account: -> { "invalid_format" },
+            validator: ->(v) { v.start_with?('cus_') }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        expect {
+          rodauth.before_create_account
+        }.to raise_error(ArgumentError, /Generated value for stripe_customer_id failed validation/)
+      end
+
+      it "applies formatter then validator to generated value" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            before_create_account: -> { "  CUS_ABC123  " },
+            formatter: ->(v) { v.strip.downcase },
+            validator: ->(v) { v.start_with?('cus_') }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        rodauth.before_create_account
+
+        # Formatter runs first (uppercase -> lowercase), then validator
+        expect(rodauth.account[:stripe_customer_id]).to eq("cus_abc123")
+      end
+
+      it "skips if generator returns nil" do
+        create_accounts_table_with_columns(columns: [:optional_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :optional_id,
+            before_create_account: -> { nil }  # Intentionally not setting
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        rodauth.before_create_account
+
+        # Should not set column if generator returns nil
+        expect(rodauth.account).not_to have_key(:optional_id)
+      end
+
+      it "generates multiple external identities" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :redis_uuid])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            before_create_account: -> { "cus_stripe123" }
+          external_identity_column :redis_uuid,
+            before_create_account: -> { "redis-uuid-456" }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        rodauth.before_create_account
+
+        expect(rodauth.account[:stripe_customer_id]).to eq("cus_stripe123")
+        expect(rodauth.account[:redis_uuid]).to eq("redis-uuid-456")
+      end
+
+      it "supports complex generation logic" do
+        create_accounts_table_with_columns(columns: [:custom_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :custom_id,
+            before_create_account: -> {
+              # Simulate external API call
+              timestamp = Time.now.to_i
+              "custom_#{timestamp}_#{rand(1000)}"
+            },
+            validator: ->(v) { v.start_with?('custom_') }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        rodauth.before_create_account
+
+        expect(rodauth.account[:custom_id]).to match(/^custom_\d+_\d+$/)
+      end
+
+      it "handles generation errors gracefully" do
+        create_accounts_table_with_columns(columns: [:external_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :external_id,
+            before_create_account: -> { raise StandardError, "External service unavailable" }
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        expect {
+          rodauth.before_create_account
+        }.to raise_error(StandardError, "External service unavailable")
+      end
+
+      it "works with columns without before_create_account callback" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :legacy_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            before_create_account: -> { "cus_generated" }
+          external_identity_column :legacy_id
+          # No callback for legacy_id
+        end
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, {})
+
+        rodauth.before_create_account
+
+        expect(rodauth.account[:stripe_customer_id]).to eq("cus_generated")
+        expect(rodauth.account).not_to have_key(:legacy_id)
+      end
+    end
   end
 end

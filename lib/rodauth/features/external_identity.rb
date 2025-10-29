@@ -332,6 +332,22 @@ module Rodauth
       results
     end
 
+    # Generate external identities during account creation
+    #
+    # Runs in before_create_account hook. For each column with
+    # before_create_account callback configured:
+    # - Skip if value already set (manual override)
+    # - Execute callback to generate value
+    # - Apply formatter if configured
+    # - Apply validator if configured
+    # - Set account column
+    #
+    # Errors during generation will prevent account creation.
+    def before_create_account
+      super if defined?(super)
+      generate_external_identities
+    end
+
     # Validation hook - runs after configuration is complete
     #
     # Validates configuration and provides helpful warnings/errors
@@ -357,6 +373,42 @@ module Rodauth
     end
 
     private
+
+    # Generate external identities for columns with before_create_account callbacks
+    #
+    # Called during before_create_account hook
+    def generate_external_identities
+      external_identity_columns_config.each do |column, config|
+        next unless config[:before_create_account]
+
+        # Skip if value already set (manual override)
+        next if account[column]
+
+        # Execute generator callback
+        generated_value = instance_exec(&config[:before_create_account])
+
+        # Skip if generator returned nil (intentionally not setting)
+        next if generated_value.nil?
+
+        # Apply formatter if configured
+        value = if config[:formatter]
+                  instance_exec(generated_value, &config[:formatter])
+                else
+                  generated_value
+                end
+
+        # Apply validator if configured
+        if config[:validator]
+          is_valid = instance_exec(value, &config[:validator])
+          unless is_valid
+            raise ArgumentError, "Generated value for #{column} failed validation: #{value.inspect}"
+          end
+        end
+
+        # Set the account column
+        account[column] = value
+      end
+    end
 
     # Internal method called by auth_cached_method
     #
