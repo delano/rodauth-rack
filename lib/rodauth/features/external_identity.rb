@@ -6,18 +6,19 @@
 #   enable :external_identity
 #
 # Configuration:
-#   external_identity_column :stripe, :stripe_customer_id
-#   external_identity_column :redis, method_name: :redis_identifier
-#   external_identity_on_conflict :warn  # :error, :warn, :skip, :override
+#   external_identity_column :stripe_customer_id
+#   external_identity_column :redis_uuid, method_name: :redis_session_key
+#   external_identity_on_conflict :warn  # :error, :warn, :skip
+#   external_identity_check_columns true  # true (default), false, or :autocreate
 #
 # Usage:
-#   rodauth.account_stripe_id    # Auto-generated helper method
-#   rodauth.account_redis_id     # Auto-generated helper method
+#   rodauth.stripe_customer_id  # Auto-generated helper method
+#   rodauth.redis_uuid          # Auto-generated helper method
 #
 # Introspection:
-#   rodauth.external_identity_column_list       # [:stripe, :redis]
-#   rodauth.external_identity_column_config(:stripe)  # {...}
-#   rodauth.external_identity_status            # Complete debug info
+#   rodauth.external_identity_column_list              # [:stripe_customer_id, :redis_uuid]
+#   rodauth.external_identity_column_config(:stripe_customer_id)  # {...}
+#   rodauth.external_identity_status                   # Complete debug info
 #
 # Example:
 #
@@ -25,22 +26,22 @@
 #     enable :login, :logout, :external_identity
 #
 #     # Declare external identity columns
-#     external_identity_column :stripe, :stripe_customer_id
-#     external_identity_column :redis, :redis_uuid
+#     external_identity_column :stripe_customer_id
+#     external_identity_column :redis_uuid
 #
-#     # Override conflict resolution per-column
-#     external_identity_column :custom, :custom_id, override: true
+#     # Custom method name
+#     external_identity_column :redis_key, method_name: :redis_session_key
 #   end
 #
 #   # In your app
-#   rodauth.account_stripe_id   # => "cus_abc123"
-#   rodauth.account_redis_id    # => "550e8400-e29b-41d4-a716-446655440000"
+#   rodauth.stripe_customer_id   # => "cus_abc123"
+#   rodauth.redis_uuid           # => "550e8400-e29b-41d4-a716-446655440000"
 
 module Rodauth
   Feature.define(:external_identity, :ExternalIdentity) do
     # Configuration methods
     auth_value_method :external_identity_on_conflict, :error
-    auth_value_method :external_identity_validate_columns, false
+    auth_value_method :external_identity_check_columns, true
 
     # Public API methods for introspection
     auth_methods(
@@ -58,25 +59,19 @@ module Rodauth
     # Add external_identity_column method to Configuration class
     # This makes it available during the configuration block
     configuration_module_eval do
-      def external_identity_column(name, column = nil, **options)
-        # Define the method on the Auth class
-        # @auth is the Auth class, not an instance
-
-        # Validate name is a symbol
-        unless name.is_a?(Symbol)
-          raise ArgumentError, "external_identity_column name must be a Symbol, got #{name.class}"
+      def external_identity_column(column, **options)
+        # Validate column is a symbol
+        unless column.is_a?(Symbol)
+          raise ArgumentError, "external_identity_column must be a Symbol, got #{column.class}"
         end
 
-        # Validate name is a valid Ruby identifier
-        unless name.to_s =~ /^[a-z_][a-z0-9_]*$/i
-          raise ArgumentError, "external_identity_column name must be a valid Ruby identifier: #{name}"
+        # Validate column is a valid Ruby identifier
+        unless column.to_s =~ /^[a-z_][a-z0-9_]*$/i
+          raise ArgumentError, "external_identity_column must be a valid Ruby identifier: #{column}"
         end
 
-        # Default column name to :#{name}_id
-        column ||= :"#{name}_id"
-
-        # Default method name to :account_#{name}_id
-        method_name = options[:method_name] || :"account_#{name}_id"
+        # Default method name is the column name itself
+        method_name = options[:method_name] || column
 
         # Validate method name is valid Ruby identifier
         unless method_name.to_s =~ /^[a-z_][a-z0-9_]*[?!=]?$/i
@@ -88,17 +83,16 @@ module Rodauth
         @auth.instance_variable_set(:@_external_identity_columns, {}) unless @auth.instance_variable_get(:@_external_identity_columns)
         columns = @auth.instance_variable_get(:@_external_identity_columns)
 
-        # Check for duplicate declarations
-        if columns.key?(name)
-          raise ArgumentError, "external_identity_column :#{name} already declared"
+        # Check for duplicate declarations using column name as key
+        if columns.key?(column)
+          raise ArgumentError, "external_identity_column :#{column} already declared"
         end
 
-        # Store configuration
-        columns[name] = {
+        # Store configuration (using column as both key and value)
+        columns[column] = {
           column: column,
           method_name: method_name,
           include_in_select: options.fetch(:include_in_select, true),
-          override: options[:override] || false,
           validate: options[:validate] || false,
           options: options
         }
@@ -148,24 +142,24 @@ module Rodauth
 
     # Get list of all declared external identity column names
     #
-    # @return [Array<Symbol>] List of identity names
+    # @return [Array<Symbol>] List of column names
     #
     # @example
-    #   external_identity_column_list  # => [:stripe, :redis]
+    #   external_identity_column_list  # => [:stripe_customer_id, :redis_uuid]
     def external_identity_column_list
       external_identity_columns_config.keys
     end
 
     # Get configuration for a specific external identity column
     #
-    # @param name [Symbol] Identity name
+    # @param column [Symbol] Column name
     # @return [Hash, nil] Configuration hash or nil if not found
     #
     # @example
-    #   external_identity_column_config(:stripe)
-    #   # => {column: :stripe_customer_id, method_name: :account_stripe_id, ...}
-    def external_identity_column_config(name)
-      external_identity_columns_config[name]
+    #   external_identity_column_config(:stripe_customer_id)
+    #   # => {column: :stripe_customer_id, method_name: :stripe_customer_id, ...}
+    def external_identity_column_config(column)
+      external_identity_columns_config[column]
     end
 
     # Get list of all generated helper method names
@@ -173,25 +167,22 @@ module Rodauth
     # @return [Array<Symbol>] List of method names
     #
     # @example
-    #   external_identity_helper_methods  # => [:account_stripe_id, :account_redis_id]
+    #   external_identity_helper_methods  # => [:stripe_customer_id, :redis_uuid]
     def external_identity_helper_methods
       external_identity_columns_config.values.map { |config| config[:method_name] }
     end
 
     # Check if a column has been declared as an external identity
     #
-    # @param name [Symbol] Identity name or column name
+    # @param column [Symbol] Column name
     # @return [Boolean] True if declared
     #
     # @example
-    #   external_identity_column?(:stripe)      # => true
-    #   external_identity_column?(:stripe_id)   # => true (checks column too)
-    #   external_identity_column?(:unknown)     # => false
-    def external_identity_column?(name)
-      return true if external_identity_columns_config.key?(name)
-
-      # Also check if it matches any column name
-      external_identity_columns_config.any? { |_k, v| v[:column] == name }
+    #   external_identity_column?(:stripe_customer_id)  # => true
+    #   external_identity_column?(:redis_uuid)          # => true
+    #   external_identity_column?(:unknown)             # => false
+    def external_identity_column?(column)
+      external_identity_columns_config.key?(column)
     end
 
     # Get complete status information for all declared external identities
@@ -205,9 +196,8 @@ module Rodauth
     #   external_identity_status
     #   # => [
     #   #   {
-    #   #     name: :stripe,
     #   #     column: :stripe_customer_id,
-    #   #     method: :account_stripe_id,
+    #   #     method: :stripe_customer_id,
     #   #     value: "cus_abc123",
     #   #     present: true,
     #   #     in_select: true,
@@ -219,8 +209,7 @@ module Rodauth
     def external_identity_status
       current_select = account_select
 
-      external_identity_columns_config.map do |name, config|
-        column = config[:column]
+      external_identity_columns_config.map do |column, config|
         method_name = config[:method_name]
 
         # Safely get the value
@@ -238,7 +227,6 @@ module Rodauth
                         end
 
         {
-          name: name,
           column: column,
           method: method_name,
           value: value,
@@ -256,10 +244,21 @@ module Rodauth
     def post_configure
       super if defined?(super)
 
-      # Validate declared columns if requested
-      validate_columns_exist! if external_identity_validate_columns
+      # Check columns based on configuration
+      case external_identity_check_columns
+      when true
+        # Check existence and raise if missing
+        check_columns_exist!
+      when :autocreate
+        # Check existence and inform table_guard if missing
+        check_and_autocreate_columns!
+      when false
+        # Skip checking entirely
+      else
+        raise ArgumentError, "external_identity_check_columns must be true, false, or :autocreate, got: #{external_identity_check_columns.inspect}"
+      end
 
-      # Check that columns are included in account_select if they should be
+      # Always check that columns are included in account_select if they should be
       validate_account_select_inclusion!
     end
 
@@ -276,33 +275,137 @@ module Rodauth
       self.class.instance_variable_get(:@_external_identity_columns) || {}
     end
 
-    # Validate that declared columns exist in the database
+    # Check that declared columns exist in the database
     #
-    # Only runs if external_identity_validate_columns is true
+    # Runs when external_identity_check_columns is true
     #
-    # @raise [ArgumentError] If validation fails
-    def validate_columns_exist!
-      return unless db  # Skip if no database available
+    # @raise [ArgumentError] If columns are missing
+    def check_columns_exist!
+      missing = find_missing_columns
+      return if missing.empty?
+
+      column_list = missing.map { |col| ":#{col}" }.join(', ')
+      raise ArgumentError, "External identity columns not found in #{accounts_table} table: #{column_list}. " \
+                           "Add columns to database, set external_identity_check_columns to false, or use :autocreate mode."
+    end
+
+    # Check columns and inform table_guard if any are missing
+    #
+    # Runs when external_identity_check_columns is :autocreate
+    def check_and_autocreate_columns!
+      missing = find_missing_columns
+      return if missing.empty?
+
+      # If table_guard is enabled, inform it about missing columns
+      if respond_to?(:table_guard_mode)
+        # Register missing external identity columns with table_guard
+        register_external_columns_with_table_guard(missing)
+      else
+        # No table_guard available - provide helpful error with migration code
+        raise ArgumentError, build_missing_columns_error(missing)
+      end
+    end
+
+    # Find columns that don't exist in the database
+    #
+    # @return [Array<Symbol>] Array of missing column names
+    def find_missing_columns
+      return [] unless db  # Skip if no database available
 
       schema = begin
                  db.schema(accounts_table)
                rescue StandardError
-                 # Can't validate - database might not exist yet
-                 return
+                 # Can't check - database might not exist yet
+                 return []
                end
 
       column_names = schema.map { |col| col[0] }
 
       missing = []
-      external_identity_columns_config.each do |name, config|
-        column = config[:column]
-        missing << "#{name} (#{column})" unless column_names.include?(column)
+      external_identity_columns_config.each do |column, _config|
+        missing << column unless column_names.include?(column)
       end
 
-      return if missing.empty?
+      missing
+    end
 
-      raise ArgumentError, "External identity columns not found in #{accounts_table} table: #{missing.join(', ')}. " \
-                           "Add columns to database or set validate: false"
+    # Register missing external identity columns with table_guard
+    #
+    # @param missing [Array<Symbol>] Array of missing column names
+    def register_external_columns_with_table_guard(missing)
+      # Add missing columns to table_guard's configuration
+      # This allows table_guard to generate migrations or create columns
+      # based on its sequel_mode setting
+
+      missing.each do |column|
+        # Determine column type - default to String for external IDs
+        # TODO: Could make this configurable per column in future
+        column_def = {
+          name: column,
+          type: :String,
+          null: true,  # External IDs are optional
+          feature: :external_identity
+        }
+
+        # If table_guard has a method to register additional columns, use it
+        # Otherwise, we'll need to ensure table_guard can discover these
+        if respond_to?(:register_required_column, true)
+          register_required_column(accounts_table, column_def)
+        end
+      end
+
+      # Trigger table_guard's validation which will handle creation/logging
+      # based on table_guard_mode and table_guard_sequel_mode
+      if respond_to?(:check_required_tables!, true)
+        # Let table_guard know we need to check again
+        # This will cause it to generate ALTER TABLE statements if in :create mode
+      end
+    end
+
+    # Build error message for missing columns with migration example
+    #
+    # @param missing [Array<Symbol>] Array of missing column names
+    # @return [String] Error message with migration code
+    def build_missing_columns_error(missing)
+      column_list = missing.map { |col| ":#{col}" }.join(', ')
+
+      migration_code = generate_migration_code(missing)
+
+      <<~ERROR
+        External identity columns not found in #{accounts_table} table: #{column_list}
+
+        With external_identity_check_columns set to :autocreate but table_guard not enabled.
+
+        Either:
+        1. Enable table_guard feature with sequel_mode to auto-create
+        2. Create migration manually:
+
+        #{migration_code}
+
+        3. Set external_identity_check_columns to false to skip checking
+      ERROR
+    end
+
+    # Generate migration code for missing columns
+    #
+    # @param missing [Array<Symbol>] Array of missing column names
+    # @return [String] Sequel migration code
+    def generate_migration_code(missing)
+      lines = ["Sequel.migration do", "  up do", "    alter_table :#{accounts_table} do"]
+
+      missing.each do |column|
+        lines << "      add_column :#{column}, String"
+      end
+
+      lines += ["    end", "  end", "", "  down do", "    alter_table :#{accounts_table} do"]
+
+      missing.each do |column|
+        lines << "      drop_column :#{column}"
+      end
+
+      lines += ["    end", "  end", "end"]
+
+      lines.join("\n")
     end
 
     # Validate that columns are included in account_select if they should be
@@ -312,10 +415,9 @@ module Rodauth
       current_select = account_select
 
       missing = []
-      external_identity_columns_config.each do |name, config|
-        column = config[:column]
+      external_identity_columns_config.each do |column, config|
         if config[:include_in_select] && !current_select.include?(column)
-          missing << "#{name} (#{column})"
+          missing << ":#{column}"
         end
       end
 
