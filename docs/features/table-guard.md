@@ -6,7 +6,7 @@ Validate that required database tables exist for enabled Rodauth features at sta
 
 ```ruby
 enable :table_guard
-table_guard_mode :error  # Fail if tables missing
+table_guard_mode :raise  # Fail if tables missing (recommended for production)
 ```
 
 ## Configuration
@@ -16,25 +16,34 @@ table_guard_mode :error  # Fail if tables missing
 Validation behavior when required tables are missing.
 
 **Values:**
-- `:error` / `:raise` - Raise `Rodauth::ConfigurationError` (recommended for production)
-- `:warn` - Log warning and continue
-- `:silent` / `:skip` - Disable validation
+
+- `:silent` / `:skip` / `nil` - Disable validation (debug log only)
+- `:warn` - Log warning message and continue execution
+- `:error` - Print distinctive message to error log but continue execution
+- `:raise` - Log error and raise `Rodauth::ConfigurationError` (recommended for production)
+- `:halt` / `:exit` - Log error and exit the process immediately
 - Block - Custom handler (receives missing tables array)
 
 **Examples:**
 
 ```ruby
-# Production: fail fast
+# Production: fail fast with exception
+table_guard_mode :raise
+
+# Production alternative: exit immediately
+table_guard_mode :halt
+
+# Staging: log error but continue (monitor logs for issues)
 table_guard_mode :error
 
 # Development: warn but continue
 table_guard_mode :warn
 
-# Custom handler
+# Custom handler with environment-specific behavior
 table_guard_mode do |missing|
   if ENV['RACK_ENV'] == 'production'
     Slack.notify("Missing tables: #{missing.map { |t| t[:table] }.join(', ')}")
-    :error  # Raise error
+    :raise  # Raise error
   else
     :continue  # Just log
   end
@@ -46,6 +55,7 @@ end
 Automatic table creation/management using Sequel migrations.
 
 **Values:**
+
 - `nil` - No automatic creation (default, recommended for production)
 - `:create` - Create missing tables
 - `:recreate` - Drop and recreate all tables (test environments only)
@@ -103,14 +113,14 @@ class RodauthApp < Roda
 
     case ENV['RACK_ENV']
     when 'production'
-      table_guard_mode :error
-      table_guard_sequel_mode nil
+      table_guard_mode :raise  # Fail with exception
+      table_guard_sequel_mode nil  # Never auto-create in production
     when 'test'
-      table_guard_mode :silent
-      table_guard_sequel_mode :recreate
+      table_guard_mode :silent  # Don't spam test output
+      table_guard_sequel_mode :recreate  # Fresh schema each run
     else  # development
-      table_guard_mode :warn
-      table_guard_sequel_mode :create
+      table_guard_mode :warn  # Helpful warnings
+      table_guard_sequel_mode :create  # Auto-create for convenience
     end
   end
 end
@@ -175,6 +185,7 @@ end
 ### Workflow Pattern
 
 **Development:**
+
 ```ruby
 # Auto-create tables for fast iteration
 table_guard_mode :warn
@@ -182,6 +193,7 @@ table_guard_sequel_mode :create
 ```
 
 **Test:**
+
 ```ruby
 # Fresh schema each run
 table_guard_mode :silent
@@ -189,6 +201,7 @@ table_guard_sequel_mode :recreate
 ```
 
 **Production:**
+
 ```ruby
 # Validation only, fail fast
 table_guard_mode :raise

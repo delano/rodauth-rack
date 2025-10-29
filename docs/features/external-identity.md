@@ -17,6 +17,7 @@ external_identity_column :redis, :redis_uuid
 Declare an external identity column.
 
 **Parameters:**
+
 - `name` - Symbol identifier (`:stripe`, `:redis`, etc.)
 - `column` - Database column name (defaults to `:"#{name}_id"`)
 - `options`:
@@ -106,6 +107,7 @@ rodauth.external_identity_status
 ## Anti-Patterns
 
 **Don't use external_identity for:**
+
 - Join table replacements (use proper foreign key tables)
 - One-to-many relationships (one account, many external records)
 - Frequently changing data (denormalization penalty)

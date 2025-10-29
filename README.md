@@ -83,16 +83,18 @@ class RodauthApp < Roda
     enable :login, :logout, :otp
     enable :table_guard  # ← Add this
 
-    table_guard_mode :warn  # or :error, :silent
+    table_guard_mode :raise  # or :warn, :error, :halt, :silent
   end
 end
 ```
 
 **Modes:**
 
-- `:warn` - Print warnings about missing tables
-- `:error` - Raise error if tables are missing (good for production)
-- `:silent` - Disable checking
+- `:silent` / `:skip` / `nil` - Disable validation (debug log only)
+- `:warn` - Log warning message and continue execution
+- `:error` - Print distinctive message to error log but continue execution
+- `:raise` - Log error and raise `Rodauth::ConfigurationError` (recommended for production)
+- `:halt` / `:exit` - Log error and exit the process immediately
 - Block - Custom handler (see below)
 
 **Custom Handlers:**
@@ -101,9 +103,9 @@ end
 table_guard_mode do |missing|
   if Rails.env.production?
     Slack.notify("Missing tables: #{missing.map { |t| t[:table] }.join(', ')}")
-    :error  # Raise error
+    :raise  # Raise error
   else
-    :continue  # Just continue
+    :continue  # Just log and continue
   end
 end
 ```

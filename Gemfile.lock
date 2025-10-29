@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rodauth-tools (0.1.0)
+    rodauth-tools (0.2.0)
       dry-inflector (~> 1.1)
       rack (~> 3.2)
       roda (~> 3.96)
