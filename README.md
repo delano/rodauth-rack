@@ -218,33 +218,12 @@ bin/console
 
 ## Documentation
 
-### Guides
-
-- **[Multi-Datastore Authentication](docs/guides/multi-datastore-auth.md)** - Patterns for synchronizing Rodauth (SQL) with application datastores (Redis, NoSQL)
-  - Simple sync, idempotent sync, and event-driven approaches
-  - Decision flowchart and CAP theorem tradeoffs
-  - Testing strategies and security considerations
-
+- **[External Identity Feature](docs/features/external-identity.md)** - Track external service identifiers
+- **[Table Guard Feature](docs/features/table-guard.md)** - Validate required database tables
 - **[Sequel Migrations](docs/sequel-migrations.md)** - Integrating table_guard with Sequel migrations
-  - Idempotent migration patterns
-  - Environment-specific configuration
-  - Using table_guard to validate external datastores
-
-### Examples
-
-- **[OneTimeSecret Sync Pattern](docs/examples/onetimesecret-sync-pattern.md)** - Production-grade session synchronization
-  - Real-world implementation with idempotency, graceful degradation, and correlation tracking
-  - Lessons learned and performance characteristics
-
-### API Reference
-
 - **[Rodauth Feature API](docs/rodauth-features-api.md)** - Complete DSL reference for feature development
-- **[Rodauth Internals](docs/rodauth-internals.rdoc)** - Object model and metaprogramming patterns
+- **[Rodauth Internals](docs/references/rodauth-internals.rdoc)** - Object model and metaprogramming patterns
 - **[Mail Configuration](docs/rodauth-mail.md)** - Email and SMTP setup
-
-### Architecture Decisions
-
-- **[ADR 001: No session_glue Feature](docs/adr/001-no-session-glue-feature.md)** - Why multi-datastore sync is application-level, not framework-level
 
 ## Related Projects
 
