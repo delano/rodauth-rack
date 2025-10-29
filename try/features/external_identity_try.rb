@@ -53,7 +53,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -62,14 +62,14 @@ end
 end
 
 @app_class.allocate.rodauth.external_identity_column_list
-#=> [:stripe]
+#=> [:stripe_id]
 
 ## Column config includes correct defaults
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -77,7 +77,7 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:column]
+@app_class.allocate.rodauth.external_identity_column_config(:stripe_id)[:column]
 #=> :stripe_id
 
 ## Method name uses correct default
@@ -85,7 +85,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -93,15 +93,15 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:method_name]
-#=> :account_stripe_id
+@app_class.allocate.rodauth.external_identity_column_config(:stripe_id)[:method_name]
+#=> :stripe_id
 
 ## include_in_select defaults to true
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -109,7 +109,7 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:include_in_select]
+@app_class.allocate.rodauth.external_identity_column_config(:stripe_id)[:include_in_select]
 #=> true
 
 ## Explicit column name
@@ -117,7 +117,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, :stripe_customer_id
+    external_identity_column :stripe_customer_id
   end
 
   route do |r|
@@ -125,7 +125,7 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:column]
+@app_class.allocate.rodauth.external_identity_column_config(:stripe_customer_id)[:column]
 #=> :stripe_customer_id
 
 ## Custom method name
@@ -133,7 +133,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, method_name: :stripe_identifier
+    external_identity_column :stripe_id, method_name: :stripe_identifier
   end
 
   route do |r|
@@ -141,7 +141,7 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:method_name]
+@app_class.allocate.rodauth.external_identity_column_config(:stripe_id)[:method_name]
 #=> :stripe_identifier
 
 ## Multiple column declarations
@@ -149,9 +149,9 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
-    external_identity_column :auth0
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
+    external_identity_column :auth0_id
   end
 
   route do |r|
@@ -160,14 +160,14 @@ end
 end
 
 @app_class.allocate.rodauth.external_identity_column_list
-#=> [:stripe, :redis, :auth0]
+#=> [:stripe_id, :redis_id, :auth0_id]
 
 ## Valid method name with underscores
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, method_name: :account_stripe_customer_id
+    external_identity_column :stripe_id, method_name: :account_stripe_customer_id
   end
 
   route do |r|
@@ -183,7 +183,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, method_name: :has_stripe?
+    external_identity_column :stripe_id, method_name: :has_stripe?
   end
 
   route do |r|
@@ -200,7 +200,7 @@ begin
     plugin :rodauth do
       self.db DB
       enable :external_identity
-      external_identity_column "stripe"
+      external_identity_column "stripe_id"
     end
 
     route { |r| r.rodauth }
@@ -234,7 +234,7 @@ begin
     plugin :rodauth do
       self.db DB
       enable :external_identity
-      external_identity_column :stripe, method_name: :"123_stripe"
+      external_identity_column :stripe_id, method_name: :"123_stripe"
     end
 
     route { |r| r.rodauth }
@@ -251,8 +251,8 @@ begin
     plugin :rodauth do
       self.db DB
       enable :external_identity
-      external_identity_column :stripe
-      external_identity_column :stripe
+      external_identity_column :stripe_id
+      external_identity_column :stripe_id
     end
 
     route { |r| r.rodauth }
@@ -263,29 +263,30 @@ rescue ArgumentError => e
 end
 #=> true
 
-## Same column with different names is allowed
-@app_class = Class.new(Roda) do
-  plugin :rodauth do
-    self.db DB
-    enable :external_identity
-    external_identity_column :stripe, :stripe_id
-    external_identity_column :stripe_alt, :stripe_id, method_name: :alternate_stripe_id
-  end
+## Cannot reuse same column even with different method names
+begin
+  Class.new(Roda) do
+    plugin :rodauth do
+      self.db DB
+      enable :external_identity
+      external_identity_column :stripe_id
+      external_identity_column :stripe_id, method_name: :alternate_stripe_id
+    end
 
-  route do |r|
-    r.rodauth
+    route { |r| r.rodauth }
   end
+  "no error"
+rescue ArgumentError => e
+  e.message.include?("already declared")
 end
-
-@app_class.allocate.rodauth.external_identity_column_list.sort
-#=> [:stripe, :stripe_alt]
+#=> true
 
 ## include_in_select option false
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, include_in_select: false
+    external_identity_column :stripe_id, include_in_select: false
   end
 
   route do |r|
@@ -293,31 +294,15 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:include_in_select]
+@app_class.allocate.rodauth.external_identity_column_config(:stripe_id)[:include_in_select]
 #=> false
-
-## override option true
-@app_class = Class.new(Roda) do
-  plugin :rodauth do
-    self.db DB
-    enable :external_identity
-    external_identity_column :stripe, override: true
-  end
-
-  route do |r|
-    r.rodauth
-  end
-end
-
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:override]
-#=> true
 
 ## validate option true
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, validate: true
+    external_identity_column :stripe_id, validate: true
   end
 
   route do |r|
@@ -325,7 +310,7 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column_config(:stripe)[:validate]
+@app_class.allocate.rodauth.external_identity_column_config(:stripe_id)[:validate]
 #=> true
 
 ## Columns added to account_select
@@ -333,8 +318,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -352,8 +337,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :stripe_alt, :stripe_id, method_name: :alt_stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -369,8 +353,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, include_in_select: false
-    external_identity_column :redis
+    external_identity_column :stripe_id, include_in_select: false
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -388,7 +372,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :login, :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -408,8 +392,8 @@ DB[:accounts].insert(email: 'test1@example.com', stripe_id: 'cus_abc123', redis_
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -418,7 +402,7 @@ DB[:accounts].insert(email: 'test1@example.com', stripe_id: 'cus_abc123', redis_
 end
 
 @rodauth = @app_class.allocate.rodauth
-@rodauth.respond_to?(:account_stripe_id) && @rodauth.respond_to?(:account_redis_id)
+@rodauth.respond_to?(:stripe_id) && @rodauth.respond_to?(:redis_id)
 #=> true
 
 ## Helper methods return correct values
@@ -426,8 +410,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -437,7 +421,7 @@ end
 
 @rodauth = @app_class.allocate.rodauth
 @rodauth.instance_variable_set(:@account, DB[:accounts].first)
-@rodauth.account_stripe_id
+@rodauth.stripe_id
 #=> "cus_abc123"
 
 ## Second helper method returns correct value
@@ -445,8 +429,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -456,7 +440,7 @@ end
 
 @rodauth = @app_class.allocate.rodauth
 @rodauth.instance_variable_set(:@account, DB[:accounts].first)
-@rodauth.account_redis_id
+@rodauth.redis_id
 #=> "redis-uuid-456"
 
 ## Helper methods handle nil account gracefully
@@ -464,7 +448,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -472,7 +456,7 @@ end
   end
 end
 
-@app_class.allocate.rodauth.account_stripe_id
+@app_class.allocate.rodauth.stripe_id
 #=> nil
 
 ## Custom method names work correctly
@@ -482,7 +466,7 @@ DB[:accounts].insert(email: 'test2@example.com', stripe_id: 'cus_xyz789')
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, method_name: :stripe_customer_id
+    external_identity_column :stripe_id, method_name: :stripe_customer_id
   end
 
   route do |r|
@@ -501,8 +485,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -511,15 +495,15 @@ end
 end
 
 @app_class.allocate.rodauth.external_identity_helper_methods.sort
-#=> [:account_redis_id, :account_stripe_id]
+#=> [:redis_id, :stripe_id]
 
 ## column_list returns declared columns
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -528,7 +512,7 @@ end
 end
 
 @app_class.allocate.rodauth.external_identity_column_list.sort
-#=> [:redis, :stripe]
+#=> [:redis_id, :stripe_id]
 
 ## column_list empty when no columns declared
 @app_class = Class.new(Roda) do
@@ -550,7 +534,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, :stripe_customer_id, method_name: :stripe_id
+    external_identity_column :stripe_customer_id, method_name: :stripe_id
   end
 
   route do |r|
@@ -558,7 +542,7 @@ end
   end
 end
 
-@config_hash = @app_class.allocate.rodauth.external_identity_column_config(:stripe)
+@config_hash = @app_class.allocate.rodauth.external_identity_column_config(:stripe_customer_id)
 @config_hash[:column] == :stripe_customer_id && @config_hash[:method_name] == :stripe_id
 #=> true
 
@@ -567,7 +551,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -583,8 +567,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis, method_name: :redis_uuid
+    external_identity_column :stripe_id
+    external_identity_column :redis_id, method_name: :redis_uuid
   end
 
   route do |r|
@@ -593,7 +577,7 @@ end
 end
 
 @app_class.allocate.rodauth.external_identity_helper_methods.sort
-#=> [:account_stripe_id, :redis_uuid]
+#=> [:redis_uuid, :stripe_id]
 
 ## helper_methods empty when no columns declared
 @app_class = Class.new(Roda) do
@@ -615,7 +599,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -623,15 +607,15 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_column?(:stripe)
+@app_class.allocate.rodauth.external_identity_column?(:stripe_id)
 #=> true
 
-## column? returns true for actual column name
+## column? returns true for declared column with custom method name
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe, :stripe_customer_id
+    external_identity_column :stripe_customer_id
   end
 
   route do |r|
@@ -647,7 +631,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -665,8 +649,8 @@ DB[:accounts].insert(email: 'test3@example.com', stripe_id: 'cus_status123', red
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -686,8 +670,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -700,7 +684,7 @@ end
 @rodauth.instance_variable_set(:@account, @account)
 @status = @rodauth.external_identity_status
 @status_item = @status.first
-[:name, :column, :method, :value, :present, :in_select, :in_account, :column_exists].all? { |k| @status_item.key?(k) }
+[:column, :method, :value, :present, :in_select, :in_account, :column_exists].all? { |k| @status_item.key?(k) }
 #=> true
 
 ## status correctly reports present values
@@ -708,8 +692,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -721,7 +705,7 @@ end
 @account = DB[:accounts].where(email: 'test3@example.com').first
 @rodauth.instance_variable_set(:@account, @account)
 @status = @rodauth.external_identity_status
-@stripe_status = @status.find { |s| s[:name] == :stripe }
+@stripe_status = @status.find { |s| s[:column] == :stripe_id }
 @stripe_status[:value] == 'cus_status123' && @stripe_status[:present] == true
 #=> true
 
@@ -730,8 +714,8 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
-    external_identity_column :redis
+    external_identity_column :stripe_id
+    external_identity_column :redis_id
   end
 
   route do |r|
@@ -743,7 +727,7 @@ end
 @account = DB[:accounts].where(email: 'test3@example.com').first
 @rodauth.instance_variable_set(:@account, @account)
 @status = @rodauth.external_identity_status
-@redis_status = @status.find { |s| s[:name] == :redis }
+@redis_status = @status.find { |s| s[:column] == :redis_id }
 @redis_status[:value].nil? && @redis_status[:present] == false
 #=> true
 
@@ -752,7 +736,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -764,7 +748,7 @@ end
 @account = DB[:accounts].where(email: 'test3@example.com').first
 @rodauth.instance_variable_set(:@account, @account)
 @status = @rodauth.external_identity_status
-@stripe_status = @status.find { |s| s[:name] == :stripe }
+@stripe_status = @status.find { |s| s[:column] == :stripe_id }
 @stripe_status[:column_exists]
 #=> true
 
@@ -773,7 +757,7 @@ end
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -786,7 +770,7 @@ end
 @status[:value].nil? && @status[:present] == false
 #=> true
 
-## Validation disabled by default (column doesn't exist but no error)
+## Checking enabled by default (column doesn't exist raises error)
 begin
   Class.new(Roda) do
     plugin :rodauth do
@@ -798,10 +782,10 @@ begin
     route { |r| r.rodauth }
   end
   "no error"
-rescue StandardError
-  "error raised"
+rescue ArgumentError => e
+  e.message.include?("not found in accounts table")
 end
-#=> "no error"
+#=> true
 
 ## external_identity_on_conflict defaults to :error
 @app_class = Class.new(Roda) do
@@ -818,11 +802,12 @@ end
 @app_class.allocate.rodauth.external_identity_on_conflict
 #=> :error
 
-## external_identity_validate_columns defaults to false
+## external_identity_check_columns defaults to true
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -830,14 +815,15 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_validate_columns
-#=> false
+@app_class.allocate.rodauth.external_identity_check_columns
+#=> true
 
 ## Customize external_identity_on_conflict
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
+    external_identity_check_columns false
     external_identity_on_conflict :warn
   end
 
@@ -849,13 +835,13 @@ end
 @app_class.allocate.rodauth.external_identity_on_conflict
 #=> :warn
 
-## Customize external_identity_validate_columns
+## Customize external_identity_check_columns to false
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_validate_columns true
-    external_identity_column :stripe
+    external_identity_check_columns false
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -863,16 +849,32 @@ end
   end
 end
 
-@app_class.allocate.rodauth.external_identity_validate_columns
-#=> true
+@app_class.allocate.rodauth.external_identity_check_columns
+#=> false
+
+## Customize external_identity_check_columns to :autocreate
+@app_class = Class.new(Roda) do
+  plugin :rodauth do
+    self.db DB
+    enable :external_identity
+    external_identity_check_columns :autocreate
+  end
+
+  route do |r|
+    r.rodauth
+  end
+end
+
+@app_class.allocate.rodauth.external_identity_check_columns
+#=> :autocreate
 
 ## Column names with underscores and numbers
 @app_class = Class.new(Roda) do
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :oauth2
-    external_identity_column :api_v2, :api_v2_key
+    external_identity_column :oauth2_id
+    external_identity_column :api_v2_key
   end
 
   route do |r|
@@ -881,7 +883,7 @@ end
 end
 
 @app_class.allocate.rodauth.external_identity_column_list.sort
-#=> [:api_v2, :oauth2]
+#=> [:api_v2_key, :oauth2_id]
 
 ## Nil values in account hash
 DB[:accounts].insert(email: 'test4@example.com', stripe_id: nil)
@@ -890,7 +892,7 @@ DB[:accounts].insert(email: 'test4@example.com', stripe_id: nil)
   plugin :rodauth do
     self.db DB
     enable :external_identity
-    external_identity_column :stripe
+    external_identity_column :stripe_id
   end
 
   route do |r|
@@ -901,7 +903,7 @@ end
 @rodauth = @app_class.allocate.rodauth
 @account = DB[:accounts].where(email: 'test4@example.com').first
 @rodauth.instance_variable_set(:@account, @account)
-@rodauth.account_stripe_id
+@rodauth.stripe_id
 #=> nil
 
 DB.disconnect

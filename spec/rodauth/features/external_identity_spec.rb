@@ -52,38 +52,38 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_list).to eq([:stripe])
-        expect(rodauth.external_identity_column_config(:stripe)).to include(
+        expect(rodauth.external_identity_column_list).to eq([:stripe_id])
+        expect(rodauth.external_identity_column_config(:stripe_id)).to include(
           column: :stripe_id,
-          method_name: :account_stripe_id,
+          method_name: :stripe_id,
           include_in_select: true
         )
       end
 
-      it "declares a column with explicit column name" do
+      it "declares a column with exact column name" do
         create_accounts_table_with_columns(columns: [:stripe_customer_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, :stripe_customer_id
+          external_identity_column :stripe_customer_id
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_config(:stripe)[:column]).to eq(:stripe_customer_id)
+        expect(rodauth.external_identity_column_config(:stripe_customer_id)[:column]).to eq(:stripe_customer_id)
       end
 
       it "declares a column with custom method name" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, method_name: :stripe_identifier
+          external_identity_column :stripe_id, method_name: :stripe_identifier
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_config(:stripe)[:method_name]).to eq(:stripe_identifier)
+        expect(rodauth.external_identity_column_config(:stripe_id)[:method_name]).to eq(:stripe_identifier)
       end
     end
 
@@ -92,25 +92,25 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id, :redis_id, :auth0_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
-          external_identity_column :redis
-          external_identity_column :auth0
+          external_identity_column :stripe_id
+          external_identity_column :redis_id
+          external_identity_column :auth0_id
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_list).to match_array([:stripe, :redis, :auth0])
+        expect(rodauth.external_identity_column_list).to match_array([:stripe_id, :redis_id, :auth0_id])
       end
 
       it "maintains declaration order" do
         create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
-          external_identity_column :redis
+          external_identity_column :stripe_id
+          external_identity_column :redis_id
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_list).to eq([:stripe, :redis])
+        expect(rodauth.external_identity_column_list).to eq([:stripe_id, :redis_id])
       end
     end
 
@@ -119,7 +119,7 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, method_name: :my_stripe_id
+          external_identity_column :stripe_id, method_name: :my_stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -130,7 +130,7 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, method_name: :account_stripe_customer_id
+          external_identity_column :stripe_id, method_name: :account_stripe_customer_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -141,7 +141,7 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, method_name: :has_stripe?
+          external_identity_column :stripe_id, method_name: :has_stripe?
         end
 
         rodauth = app_class.allocate.rodauth
@@ -156,7 +156,7 @@ RSpec.describe "Rodauth external_identity feature" do
         expect {
           create_roda_app do
             enable :external_identity
-            external_identity_column "stripe"
+            external_identity_column "stripe_id"
           end
         }.to raise_error(ArgumentError, /must be a Symbol/)
       end
@@ -178,7 +178,7 @@ RSpec.describe "Rodauth external_identity feature" do
         expect {
           create_roda_app do
             enable :external_identity
-            external_identity_column :stripe, method_name: :"123_stripe"
+            external_identity_column :stripe_id, method_name: :"123_stripe"
           end
         }.to raise_error(ArgumentError, /must be a valid Ruby identifier/)
       end
@@ -189,7 +189,7 @@ RSpec.describe "Rodauth external_identity feature" do
         expect {
           create_roda_app do
             enable :external_identity
-            external_identity_column :stripe, method_name: :"stripe@id"
+            external_identity_column :stripe_id, method_name: :"stripe@id"
           end
         }.to raise_error(ArgumentError, /must be a valid Ruby identifier/)
       end
@@ -202,22 +202,22 @@ RSpec.describe "Rodauth external_identity feature" do
         expect {
           create_roda_app do
             enable :external_identity
-            external_identity_column :stripe
-            external_identity_column :stripe
+            external_identity_column :stripe_id
+            external_identity_column :stripe_id
           end
         }.to raise_error(ArgumentError, /already declared/)
       end
 
-      it "allows same column with different names" do
+      it "cannot reuse same column even with different method names" do
         create_accounts_table_with_columns(columns: [:stripe_id])
-        app_class = create_roda_app do
-          enable :external_identity
-          external_identity_column :stripe, :stripe_id
-          external_identity_column :stripe_alt, :stripe_id, method_name: :alternate_stripe_id
-        end
 
-        rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_list).to match_array([:stripe, :stripe_alt])
+        expect {
+          create_roda_app do
+            enable :external_identity
+            external_identity_column :stripe_id
+            external_identity_column :stripe_id, method_name: :alternate_stripe_id
+          end
+        }.to raise_error(ArgumentError, /already declared/)
       end
     end
 
@@ -226,33 +226,22 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, include_in_select: false
+          external_identity_column :stripe_id, include_in_select: false
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_config(:stripe)[:include_in_select]).to be false
-      end
-
-      it "accepts override option" do
-        create_accounts_table_with_columns(columns: [:stripe_id])
-        app_class = create_roda_app do
-          enable :external_identity
-          external_identity_column :stripe, override: true
-        end
-
-        rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_config(:stripe)[:override]).to be true
+        expect(rodauth.external_identity_column_config(:stripe_id)[:include_in_select]).to be false
       end
 
       it "accepts validate option" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, validate: true
+          external_identity_column :stripe_id, validate: true
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_config(:stripe)[:validate]).to be true
+        expect(rodauth.external_identity_column_config(:stripe_id)[:validate]).to be true
       end
     end
   end
@@ -262,8 +251,8 @@ RSpec.describe "Rodauth external_identity feature" do
       create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
-        external_identity_column :redis
+        external_identity_column :stripe_id
+        external_identity_column :redis_id
       end
 
       rodauth = app_class.allocate.rodauth
@@ -275,8 +264,7 @@ RSpec.describe "Rodauth external_identity feature" do
       create_accounts_table_with_columns(columns: [:stripe_id])
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
-        external_identity_column :stripe_alt, :stripe_id, method_name: :alt_stripe
+        external_identity_column :stripe_id
       end
 
       rodauth = app_class.allocate.rodauth
@@ -288,8 +276,8 @@ RSpec.describe "Rodauth external_identity feature" do
       create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe, include_in_select: false
-        external_identity_column :redis
+        external_identity_column :stripe_id, include_in_select: false
+        external_identity_column :redis_id
       end
 
       rodauth = app_class.allocate.rodauth
@@ -303,7 +291,7 @@ RSpec.describe "Rodauth external_identity feature" do
       app_class = create_roda_app do
         enable :login
         enable :external_identity
-        external_identity_column :stripe
+        external_identity_column :stripe_id
       end
 
       rodauth = app_class.allocate.rodauth
@@ -318,9 +306,9 @@ RSpec.describe "Rodauth external_identity feature" do
       create_accounts_table_with_columns(columns: [:stripe_id, :redis_id, :auth0_id])
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
-        external_identity_column :redis
-        external_identity_column :auth0
+        external_identity_column :stripe_id
+        external_identity_column :redis_id
+        external_identity_column :auth0_id
       end
 
       rodauth = app_class.allocate.rodauth
@@ -343,13 +331,13 @@ RSpec.describe "Rodauth external_identity feature" do
 
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
-        external_identity_column :redis
+        external_identity_column :stripe_id
+        external_identity_column :redis_id
       end
 
       rodauth = app_class.allocate.rodauth
-      expect(rodauth.respond_to?(:account_stripe_id)).to be true
-      expect(rodauth.respond_to?(:account_redis_id)).to be true
+      expect(rodauth.respond_to?(:stripe_id)).to be true
+      expect(rodauth.respond_to?(:redis_id)).to be true
     end
 
     it "helper methods return correct values" do
@@ -358,26 +346,26 @@ RSpec.describe "Rodauth external_identity feature" do
 
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
-        external_identity_column :redis
+        external_identity_column :stripe_id
+        external_identity_column :redis_id
       end
 
       rodauth = app_class.allocate.rodauth
       rodauth.instance_variable_set(:@account, db[:accounts].first)
 
-      expect(rodauth.account_stripe_id).to eq('cus_abc123')
-      expect(rodauth.account_redis_id).to eq('redis-uuid-456')
+      expect(rodauth.stripe_id).to eq('cus_abc123')
+      expect(rodauth.redis_id).to eq('redis-uuid-456')
     end
 
     it "helper methods handle nil account gracefully" do
       create_accounts_table_with_columns(columns: [:stripe_id])
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
+        external_identity_column :stripe_id
       end
 
       rodauth = app_class.allocate.rodauth
-      expect(rodauth.account_stripe_id).to be_nil
+      expect(rodauth.stripe_id).to be_nil
     end
 
     it "custom method names work correctly" do
@@ -386,7 +374,7 @@ RSpec.describe "Rodauth external_identity feature" do
 
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe, method_name: :stripe_customer_id
+        external_identity_column :stripe_id, method_name: :stripe_customer_id
       end
 
       rodauth = app_class.allocate.rodauth
@@ -400,14 +388,14 @@ RSpec.describe "Rodauth external_identity feature" do
       create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
-        external_identity_column :redis
+        external_identity_column :stripe_id
+        external_identity_column :redis_id
       end
 
       rodauth = app_class.allocate.rodauth
       methods = rodauth.external_identity_helper_methods
 
-      expect(methods).to match_array([:account_stripe_id, :account_redis_id])
+      expect(methods).to match_array([:stripe_id, :redis_id])
     end
   end
 
@@ -417,12 +405,12 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
-          external_identity_column :redis
+          external_identity_column :stripe_id
+          external_identity_column :redis_id
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column_list).to match_array([:stripe, :redis])
+        expect(rodauth.external_identity_column_list).to match_array([:stripe_id, :redis_id])
       end
 
       it "returns empty array when no columns declared" do
@@ -441,11 +429,11 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_customer_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, :stripe_customer_id, method_name: :stripe_id
+          external_identity_column :stripe_customer_id, method_name: :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
-        config_hash = rodauth.external_identity_column_config(:stripe)
+        config_hash = rodauth.external_identity_column_config(:stripe_customer_id)
 
         expect(config_hash).to include(
           column: :stripe_customer_id,
@@ -458,7 +446,7 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -471,12 +459,12 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id, :redis_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
-          external_identity_column :redis, method_name: :redis_uuid
+          external_identity_column :stripe_id
+          external_identity_column :redis_id, method_name: :redis_uuid
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_helper_methods).to match_array([:account_stripe_id, :redis_uuid])
+        expect(rodauth.external_identity_helper_methods).to match_array([:stripe_id, :redis_uuid])
       end
 
       it "returns empty array when no columns declared" do
@@ -495,18 +483,18 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
-        expect(rodauth.external_identity_column?(:stripe)).to be true
+        expect(rodauth.external_identity_column?(:stripe_id)).to be true
       end
 
-      it "returns true for actual column name" do
+      it "returns true for declared column with custom method name" do
         create_accounts_table_with_columns(columns: [:stripe_customer_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe, :stripe_customer_id
+          external_identity_column :stripe_customer_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -517,7 +505,7 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -532,8 +520,8 @@ RSpec.describe "Rodauth external_identity feature" do
 
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
-          external_identity_column :redis
+          external_identity_column :stripe_id
+          external_identity_column :redis_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -550,7 +538,7 @@ RSpec.describe "Rodauth external_identity feature" do
 
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -558,7 +546,7 @@ RSpec.describe "Rodauth external_identity feature" do
 
         status = rodauth.external_identity_status.first
         expect(status).to include(
-          :name, :column, :method, :value, :present,
+          :column, :method, :value, :present,
           :in_select, :in_account, :column_exists
         )
       end
@@ -569,7 +557,7 @@ RSpec.describe "Rodauth external_identity feature" do
 
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -586,7 +574,7 @@ RSpec.describe "Rodauth external_identity feature" do
 
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :redis
+          external_identity_column :redis_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -603,7 +591,7 @@ RSpec.describe "Rodauth external_identity feature" do
 
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -617,7 +605,7 @@ RSpec.describe "Rodauth external_identity feature" do
         create_accounts_table_with_columns(columns: [:stripe_id])
         app_class = create_roda_app do
           enable :external_identity
-          external_identity_column :stripe
+          external_identity_column :stripe_id
         end
 
         rodauth = app_class.allocate.rodauth
@@ -630,38 +618,38 @@ RSpec.describe "Rodauth external_identity feature" do
   end
 
   describe "validation" do
-    context "column existence validation" do
-      it "does not validate columns by default" do
+    context "column existence checking" do
+      it "checks columns by default (true)" do
         create_accounts_table_with_columns(columns: [])
 
         expect {
           create_roda_app do
             enable :external_identity
-            external_identity_column :stripe
-          end
-        }.not_to raise_error
-      end
-
-      it "validates columns when validate option is true" do
-        create_accounts_table_with_columns(columns: [])
-
-        expect {
-          create_roda_app do
-            enable :external_identity
-            external_identity_validate_columns true
-            external_identity_column :stripe
+            external_identity_column :stripe_id
           end
         }.to raise_error(ArgumentError, /not found in accounts table/)
       end
 
-      it "passes validation when columns exist" do
+      it "skips checking when set to false" do
+        create_accounts_table_with_columns(columns: [])
+
+        expect {
+          create_roda_app do
+            enable :external_identity
+            external_identity_check_columns false
+            external_identity_column :stripe_id
+          end
+        }.not_to raise_error
+      end
+
+      it "passes checking when columns exist" do
         create_accounts_table_with_columns(columns: [:stripe_id])
 
         expect {
           create_roda_app do
             enable :external_identity
-            external_identity_validate_columns true
-            external_identity_column :stripe
+            external_identity_check_columns true
+            external_identity_column :stripe_id
           end
         }.not_to raise_error
       end
@@ -672,11 +660,27 @@ RSpec.describe "Rodauth external_identity feature" do
         expect {
           create_roda_app do
             enable :external_identity
-            external_identity_validate_columns true
-            external_identity_column :stripe
-            external_identity_column :redis
+            external_identity_check_columns true
+            external_identity_column :stripe_id
+            external_identity_column :redis_id
           end
         }.to raise_error(ArgumentError, /stripe.*redis/)
+      end
+
+      it "supports :autocreate mode with helpful migration code" do
+        create_accounts_table_with_columns(columns: [])
+
+        expect {
+          create_roda_app do
+            enable :external_identity
+            external_identity_check_columns :autocreate
+            external_identity_column :stripe_id
+          end
+        }.to raise_error(ArgumentError) do |error|
+          expect(error.message).to match(/autocreate/)
+          expect(error.message).to match(/Sequel\.migration/)
+          expect(error.message).to match(/add_column :stripe_id/)
+        end
       end
     end
 
@@ -723,10 +727,10 @@ RSpec.describe "Rodauth external_identity feature" do
 
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
-        external_identity_column :redis, include_in_select: false
-        external_identity_column :auth0, method_name: :auth0_user
-        external_identity_column :custom, :custom_id, override: true, validate: false
+        external_identity_column :stripe_id
+        external_identity_column :redis_id, include_in_select: false
+        external_identity_column :auth0_id, method_name: :auth0_user
+        external_identity_column :custom_id, validate: false
       end
 
       rodauth = app_class.allocate.rodauth
@@ -742,12 +746,12 @@ RSpec.describe "Rodauth external_identity feature" do
 
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :oauth2
-        external_identity_column :api_v2, :api_v2_key
+        external_identity_column :oauth2_id
+        external_identity_column :api_v2_key
       end
 
       rodauth = app_class.allocate.rodauth
-      expect(rodauth.external_identity_column_list).to match_array([:oauth2, :api_v2])
+      expect(rodauth.external_identity_column_list).to match_array([:oauth2_id, :api_v2_key])
     end
 
     it "handles nil values in account hash" do
@@ -756,13 +760,13 @@ RSpec.describe "Rodauth external_identity feature" do
 
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_column :stripe
+        external_identity_column :stripe_id
       end
 
       rodauth = app_class.allocate.rodauth
       rodauth.instance_variable_set(:@account, db[:accounts].first)
 
-      expect(rodauth.account_stripe_id).to be_nil
+      expect(rodauth.stripe_id).to be_nil
     end
   end
 
@@ -777,20 +781,22 @@ RSpec.describe "Rodauth external_identity feature" do
       expect(rodauth.external_identity_on_conflict).to eq(:error)
     end
 
-    it "external_identity_validate_columns defaults to false" do
-      create_accounts_table_with_columns(columns: [])
+    it "external_identity_check_columns defaults to true" do
+      create_accounts_table_with_columns(columns: [:stripe_id])
       app_class = create_roda_app do
         enable :external_identity
+        external_identity_column :stripe_id
       end
 
       rodauth = app_class.allocate.rodauth
-      expect(rodauth.external_identity_validate_columns).to be false
+      expect(rodauth.external_identity_check_columns).to be true
     end
 
     it "allows customizing external_identity_on_conflict" do
       create_accounts_table_with_columns(columns: [])
       app_class = create_roda_app do
         enable :external_identity
+        external_identity_check_columns false
         external_identity_on_conflict :warn
       end
 
@@ -798,16 +804,27 @@ RSpec.describe "Rodauth external_identity feature" do
       expect(rodauth.external_identity_on_conflict).to eq(:warn)
     end
 
-    it "allows customizing external_identity_validate_columns" do
-      create_accounts_table_with_columns(columns: [:stripe_id])
+    it "allows customizing external_identity_check_columns to false" do
+      create_accounts_table_with_columns(columns: [])
       app_class = create_roda_app do
         enable :external_identity
-        external_identity_validate_columns true
-        external_identity_column :stripe
+        external_identity_check_columns false
+        external_identity_column :stripe_id
       end
 
       rodauth = app_class.allocate.rodauth
-      expect(rodauth.external_identity_validate_columns).to be true
+      expect(rodauth.external_identity_check_columns).to be false
+    end
+
+    it "allows customizing external_identity_check_columns to :autocreate" do
+      create_accounts_table_with_columns(columns: [])
+      app_class = create_roda_app do
+        enable :external_identity
+        external_identity_check_columns :autocreate
+      end
+
+      rodauth = app_class.allocate.rodauth
+      expect(rodauth.external_identity_check_columns).to eq(:autocreate)
     end
   end
 end
