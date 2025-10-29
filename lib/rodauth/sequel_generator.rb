@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "table_inspector"
+require_relative "template_inspector"
 
 module Rodauth
   # SequelGenerator generates Sequel migration code for missing Rodauth tables.
@@ -76,13 +77,21 @@ module Rodauth
 
     # Generate DROP TABLE statements
     #
+    # Uses TemplateInspector to extract ALL tables from ERB templates,
+    # including "hidden" tables that don't have corresponding *_table methods
+    # (like account_statuses and account_password_hashes from base.erb).
+    #
     # @return [String] Sequel DROP TABLE code
     def generate_drop_statements
-      # Drop in reverse order to handle foreign key dependencies
-      ordered_tables = order_tables_by_dependency.reverse
+      # Extract all tables from ERB templates (not just discovered methods)
+      all_tables = extract_all_tables_from_templates
 
-      statements = ordered_tables.map do |table_info|
-        "drop_table?(:#{table_info[:table]})"
+      # Drop in reverse order to handle foreign key dependencies
+      # (child tables first, then parent tables)
+      ordered_tables = order_tables_for_drop(all_tables).reverse
+
+      statements = ordered_tables.map do |table_name|
+        "drop_table?(:#{table_name})"
       end
 
       statements.join("\n")
@@ -107,12 +116,18 @@ module Rodauth
 
     # Execute DROP TABLE operations directly against the database
     #
+    # Uses TemplateInspector to extract ALL tables from ERB templates.
+    #
     # @param db [Sequel::Database] Database connection
     def execute_drops(db)
-      ordered_tables = order_tables_by_dependency.reverse
+      # Extract all tables from ERB templates
+      all_tables = extract_all_tables_from_templates
 
-      ordered_tables.each do |table_info|
-        db.drop_table?(table_info[:table].to_sym)
+      # Drop in reverse order to handle foreign key dependencies
+      ordered_tables = order_tables_for_drop(all_tables).reverse
+
+      ordered_tables.each do |table_name|
+        db.drop_table?(table_name.to_sym)
       end
     end
 
@@ -166,6 +181,84 @@ module Rodauth
                 end
 
       Rodauth::Tools::Migration::MockSequelDatabase.new(adapter)
+    end
+
+    # Extract all tables from ERB templates for the enabled features
+    #
+    # This discovers ALL tables that will be created, including "hidden" tables
+    # like account_statuses and account_password_hashes that don't have
+    # corresponding *_table methods in Rodauth.
+    #
+    # @return [Array<Symbol>] Array of all table names
+    def extract_all_tables_from_templates
+      features = extract_features_from_missing_tables
+      table_prefix = extract_table_prefix
+      db_type = extract_db_type
+
+      TemplateInspector.all_tables_for_features(
+        features,
+        table_prefix: table_prefix,
+        db_type: db_type
+      )
+    end
+
+    # Extract table prefix from rodauth instance
+    #
+    # @return [String] Table prefix (singular form, e.g., "account")
+    def extract_table_prefix
+      if rodauth_instance.respond_to?(:accounts_table)
+        table_name = rodauth_instance.accounts_table.to_s
+        require 'dry/inflector'
+        Dry::Inflector.new.singularize(table_name)
+      else
+        'account'
+      end
+    end
+
+    # Extract database type for template evaluation
+    #
+    # @return [Symbol] Database type (:postgres, :mysql, :sqlite)
+    def extract_db_type
+      if db
+        db.database_type
+      else
+        :postgres  # Default
+      end
+    end
+
+    # Order tables for dropping (reverse dependency order)
+    #
+    # Rules:
+    # - Feature tables first (have foreign keys to parent tables)
+    # - Then account_password_hashes (foreign key to accounts)
+    # - Then accounts (foreign key to account_statuses)
+    # - Finally account_statuses (no dependencies)
+    #
+    # @param tables [Array<Symbol>] Table names
+    # @return [Array<Symbol>] Ordered table names
+    def order_tables_for_drop(tables)
+      # Categorize tables by dependency level
+      statuses_tables = []
+      accounts_tables = []
+      password_hash_tables = []
+      feature_tables = []
+
+      tables.each do |table_name|
+        table_str = table_name.to_s
+        if table_str.end_with?('_statuses')
+          statuses_tables << table_name
+        elsif table_str.match?(/^accounts?$/)
+          accounts_tables << table_name
+        elsif table_str.match?(/_password_hashes?$/)
+          password_hash_tables << table_name
+        else
+          feature_tables << table_name
+        end
+      end
+
+      # Return in creation order (statuses, then accounts, then others)
+      # Caller will reverse this for dropping
+      statuses_tables + accounts_tables + password_hash_tables + feature_tables
     end
 
     # Order tables by dependency (accounts table first, then feature tables)
