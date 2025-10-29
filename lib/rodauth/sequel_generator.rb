@@ -297,7 +297,7 @@ module Rodauth
       when :password_hash
         "String :password_hash"
       when :status_id, :status
-        "Integer :status, null: false, default: 1"
+        "Integer :status_id, null: false, default: 1"
       when :key
         "String :key, null: false"
       when :deadline

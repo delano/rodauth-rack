@@ -273,7 +273,7 @@ rodauth.clear_session          # Clear session data
 
 ```ruby
 rodauth.account[:email]         # Get account email
-rodauth.account[:status]        # Get account status
+rodauth.account[:status_id]        # Get account status
 rodauth.account_status_id       # Account status ID
 ```
 

@@ -10,7 +10,7 @@ RSpec.describe "TableGuard Integration" do
     db.create_table :accounts do
       primary_key :id
       String :email, null: false
-      String :status, default: "unverified"
+      String :status_id, default: "unverified"
     end
 
     db.create_table :account_password_hashes do

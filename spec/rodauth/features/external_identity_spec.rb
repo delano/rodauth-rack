@@ -32,7 +32,7 @@ RSpec.describe "Rodauth external_identity feature" do
     db.create_table :accounts do
       primary_key :id
       String :email, null: false, unique: true
-      String :status, default: "unverified"
+      String :status_id, default: "unverified"
 
       # Add external identity columns
       columns.each do |col|
@@ -1368,6 +1368,514 @@ RSpec.describe "Rodauth external_identity feature" do
 
         expect(rodauth.account[:stripe_customer_id]).to eq("cus_generated")
         expect(rodauth.account).not_to have_key(:legacy_id)
+      end
+    end
+
+    describe "verifier callback" do
+      it "verifies existing external record successfully" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        # Mock Stripe API
+        stripe_customers = { "cus_abc123" => { id: "cus_abc123", deleted: false } }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            verifier: ->(id) {
+              customer = stripe_customers[id]
+              customer && !customer[:deleted]
+            }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "cus_abc123"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect(rodauth.verify_external_identity(:stripe_customer_id)).to be true
+      end
+
+      it "returns false when external record deleted/missing" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id])
+
+        # Mock Stripe API with deleted customer
+        stripe_customers = { "cus_deleted" => { id: "cus_deleted", deleted: true } }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            verifier: ->(id) {
+              customer = stripe_customers[id]
+              customer && !customer[:deleted]
+            }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "cus_deleted"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect(rodauth.verify_external_identity(:stripe_customer_id)).to be false
+      end
+
+      it "handles API errors gracefully (returns false, doesn't raise)" do
+        create_accounts_table_with_columns(columns: [:external_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :external_id,
+            verifier: ->(id) {
+              raise StandardError, "Network timeout"
+            }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          external_id: "ext_123"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        # Should capture warnings
+        expect {
+          result = rodauth.verify_external_identity(:external_id)
+          expect(result).to be false
+        }.to output(/Verification failed for external_id/).to_stderr
+      end
+
+      it "skips verification for nil values" do
+        create_accounts_table_with_columns(columns: [:optional_id])
+
+        verifier_called = false
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :optional_id,
+            verifier: ->(id) { verifier_called = true; true }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          optional_id: nil
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        result = rodauth.verify_external_identity(:optional_id)
+        expect(result).to be true
+        expect(verifier_called).to be false
+      end
+
+      it "returns true when no verifier configured" do
+        create_accounts_table_with_columns(columns: [:legacy_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :legacy_id
+          # No verifier
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          legacy_id: "legacy_123"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect(rodauth.verify_external_identity(:legacy_id)).to be true
+      end
+
+      it "verifies all configured identities" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :github_user_id])
+
+        # Mock external services
+        stripe_customers = { "cus_abc123" => { deleted: false } }
+        github_users = { "12345" => { suspended: false } }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            verifier: ->(id) { stripe_customers[id] && !stripe_customers[id][:deleted] }
+          external_identity_column :github_user_id,
+            verifier: ->(id) { github_users[id] && !github_users[id][:suspended] }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "cus_abc123",
+          github_user_id: "12345"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        results = rodauth.verify_all_external_identities
+        expect(results[:stripe_customer_id]).to be true
+        expect(results[:github_user_id]).to be true
+      end
+
+      it "skips columns without verifiers in verify_all" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :legacy_id])
+
+        stripe_customers = { "cus_abc123" => { deleted: false } }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            verifier: ->(id) { stripe_customers[id] && !stripe_customers[id][:deleted] }
+          external_identity_column :legacy_id
+          # No verifier for legacy_id
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "cus_abc123",
+          legacy_id: "legacy_123"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        results = rodauth.verify_all_external_identities
+        expect(results).to have_key(:stripe_customer_id)
+        expect(results).not_to have_key(:legacy_id)
+      end
+
+      it "supports custom verifier logic" do
+        create_accounts_table_with_columns(columns: [:team_member_id])
+
+        # Mock team membership API
+        team_members = {
+          "member_123" => { active: true, role: "admin" }
+        }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :team_member_id,
+            verifier: ->(id) {
+              member = team_members[id]
+              member && member[:active] && member[:role] == "admin"
+            }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          team_member_id: "member_123"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        expect(rodauth.verify_external_identity(:team_member_id)).to be true
+      end
+
+      it "applies formatter before verification" do
+        create_accounts_table_with_columns(columns: [:api_key])
+
+        # Mock API that expects lowercase keys
+        valid_keys = ["api_key123"]
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :api_key,
+            formatter: ->(v) { v.to_s.strip.downcase },
+            verifier: ->(key) { valid_keys.include?(key) }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          api_key: "  API_KEY123  "
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        # Should format then verify
+        expect(rodauth.verify_external_identity(:api_key)).to be true
+      end
+
+      it "continues checking all columns even if some fail" do
+        create_accounts_table_with_columns(columns: [:stripe_customer_id, :github_user_id])
+
+        stripe_customers = { "cus_deleted" => { deleted: true } }
+        github_users = { "12345" => { suspended: false } }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :stripe_customer_id,
+            verifier: ->(id) { stripe_customers[id] && !stripe_customers[id][:deleted] }
+          external_identity_column :github_user_id,
+            verifier: ->(id) { github_users[id] && !github_users[id][:suspended] }
+        end
+
+        account = db[:accounts].insert(
+          email: "user@example.com",
+          stripe_customer_id: "cus_deleted",
+          github_user_id: "12345"
+        )
+        account_record = db[:accounts].first
+
+        rodauth = app_class.allocate.rodauth
+        rodauth.instance_variable_set(:@account, account_record)
+
+        results = rodauth.verify_all_external_identities
+        expect(results[:stripe_customer_id]).to be false
+        expect(results[:github_user_id]).to be true
+      end
+    end
+
+    describe "handshake callback" do
+      it "verifies valid handshake token" do
+        create_accounts_table_with_columns(columns: [:github_user_id])
+
+        # Simulate OAuth state token stored in session
+        oauth_state = "secure_random_state_123"
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :github_user_id,
+            handshake: ->(github_id, state) {
+              # In real app, would compare with session[:oauth_state]
+              state == oauth_state
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Valid handshake
+        result = rodauth.verify_handshake(:github_user_id, "12345", oauth_state)
+        expect(result).to be true
+      end
+
+      it "rejects invalid handshake token" do
+        create_accounts_table_with_columns(columns: [:github_user_id])
+
+        oauth_state = "secure_random_state_123"
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :github_user_id,
+            handshake: ->(github_id, state) {
+              state == oauth_state
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Invalid handshake - should raise
+        expect {
+          rodauth.verify_handshake(:github_user_id, "12345", "wrong_state")
+        }.to raise_error(RuntimeError, /Handshake verification failed/)
+      end
+
+      it "OAuth CSRF protection example" do
+        create_accounts_table_with_columns(columns: [:github_user_id])
+
+        # Simulate session storage
+        session_state = "random_state_abc123"
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :github_user_id,
+            handshake: ->(github_id, provided_state) {
+              # Real implementation would check session[:oauth_state]
+              provided_state == session_state
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Valid OAuth flow
+        expect(rodauth.verify_handshake(:github_user_id, "github_123", session_state)).to be true
+
+        # CSRF attack attempt
+        expect {
+          rodauth.verify_handshake(:github_user_id, "github_123", "attacker_state")
+        }.to raise_error(/Handshake verification failed/)
+      end
+
+      it "team invite verification example" do
+        create_accounts_table_with_columns(columns: [:team_id])
+
+        # Mock invite tokens
+        valid_invites = {
+          "team_456" => "invite_token_xyz"
+        }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :team_id,
+            handshake: ->(team_id, invite_token) {
+              valid_invites[team_id] == invite_token
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Valid invite
+        expect(rodauth.verify_handshake(:team_id, "team_456", "invite_token_xyz")).to be true
+
+        # Invalid invite token
+        expect {
+          rodauth.verify_handshake(:team_id, "team_456", "wrong_token")
+        }.to raise_error(/Handshake verification failed/)
+      end
+
+      it "raises on handshake failure (secure by default)" do
+        create_accounts_table_with_columns(columns: [:secure_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :secure_id,
+            handshake: ->(id, token) { false }  # Always fails
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        expect {
+          rodauth.verify_handshake(:secure_id, "value", "token")
+        }.to raise_error(RuntimeError, /Handshake verification failed/)
+      end
+
+      it "returns true for valid verification" do
+        create_accounts_table_with_columns(columns: [:verified_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :verified_id,
+            handshake: ->(id, token) { true }  # Always passes
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        result = rodauth.verify_handshake(:verified_id, "value", "token")
+        expect(result).to be true
+      end
+
+      it "supports custom handshake logic" do
+        create_accounts_table_with_columns(columns: [:custom_id])
+
+        # Mock signature verification
+        valid_signatures = {
+          "id_123" => "signature_abc"
+        }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :custom_id,
+            handshake: ->(id, signature) {
+              valid_signatures[id] == signature
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Valid signature
+        expect(rodauth.verify_handshake(:custom_id, "id_123", "signature_abc")).to be true
+
+        # Invalid signature
+        expect {
+          rodauth.verify_handshake(:custom_id, "id_123", "wrong_sig")
+        }.to raise_error(/Handshake verification failed/)
+      end
+
+      it "works without handshake configured" do
+        create_accounts_table_with_columns(columns: [:simple_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :simple_id
+          # No handshake callback
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Should pass without handshake
+        result = rodauth.verify_handshake(:simple_id, "value", "token")
+        expect(result).to be true
+      end
+
+      it "applies formatter before handshake" do
+        create_accounts_table_with_columns(columns: [:formatted_id])
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :formatted_id,
+            formatter: ->(v) { v.to_s.strip.downcase },
+            handshake: ->(id, token) {
+              # Expects lowercase
+              id == "abc123" && token == "valid"
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Formatter should normalize before handshake
+        expect(rodauth.verify_handshake(:formatted_id, "  ABC123  ", "valid")).to be true
+      end
+
+      it "handshake with complex multi-factor verification" do
+        create_accounts_table_with_columns(columns: [:secure_account_id])
+
+        # Mock multi-factor verification state
+        mfa_sessions = {
+          "account_789" => {
+            oauth_state: "state_xyz",
+            totp_verified: true,
+            ip_address: "192.168.1.1"
+          }
+        }
+
+        app_class = create_roda_app do
+          enable :external_identity
+          external_identity_column :secure_account_id,
+            handshake: ->(account_id, verification_data) {
+              session = mfa_sessions[account_id]
+              return false unless session
+
+              # Verify multiple factors
+              verification_data[:oauth_state] == session[:oauth_state] &&
+                verification_data[:totp_verified] == true &&
+                verification_data[:ip_address] == session[:ip_address]
+            }
+        end
+
+        rodauth = app_class.allocate.rodauth
+
+        # Valid multi-factor verification
+        valid_data = {
+          oauth_state: "state_xyz",
+          totp_verified: true,
+          ip_address: "192.168.1.1"
+        }
+        expect(rodauth.verify_handshake(:secure_account_id, "account_789", valid_data)).to be true
+
+        # Failed MFA - wrong IP
+        invalid_data = {
+          oauth_state: "state_xyz",
+          totp_verified: true,
+          ip_address: "10.0.0.1"
+        }
+        expect {
+          rodauth.verify_handshake(:secure_account_id, "account_789", invalid_data)
+        }.to raise_error(/Handshake verification failed/)
       end
     end
   end

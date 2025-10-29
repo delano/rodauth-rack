@@ -57,7 +57,7 @@ RSpec.describe Rodauth::Tools::Migration do
 
       expect(migration).to include('create_table :accounts')
       expect(migration).to include('primary_key :id')
-      expect(migration).to include('Integer :status')
+      expect(migration).to include('Integer :status_id')
       expect(migration).to include('String :password_hash')
     end
 

@@ -66,6 +66,17 @@ module Rodauth
       :validate_all_external_identities
     )
 
+    # Layer 2: Verification methods
+    auth_methods(
+      :verify_external_identity,
+      :verify_all_external_identities
+    )
+
+    # Layer 2: Handshake methods
+    auth_methods(
+      :verify_handshake
+    )
+
     # Use auth_cached_method for column configuration
     # This ensures it works in both post_configure and runtime
     auth_cached_method :external_identity_columns_config
@@ -330,6 +341,111 @@ module Rodauth
         end
       end
       results
+    end
+
+    # Verify external identity by checking with external service
+    #
+    # Health check that verifies the external identity still exists
+    # and is valid. Non-critical - returns false on failure rather
+    # than raising (except for unhandled exceptions).
+    #
+    # @param column [Symbol] Column name
+    # @return [Boolean] True if verified, false if not or no verifier configured
+    #
+    # @example
+    #   verify_external_identity(:stripe_customer_id)  # => true
+    #   verify_external_identity(:deleted_id)          # => false
+    def verify_external_identity(column)
+      config = external_identity_columns_config[column]
+      return true unless config
+      return true unless config[:verifier]
+
+      value = account ? account[column] : nil
+      return true if value.nil? # Skip nil values
+
+      # Apply formatter if present
+      formatted_value = if config[:formatter]
+                          instance_exec(value, &config[:formatter])
+                        else
+                          value
+                        end
+
+      # Execute verifier callback
+      # Non-critical: catch errors and return false
+      begin
+        result = instance_exec(formatted_value, &config[:verifier])
+        !!result # Ensure boolean
+      rescue StandardError => e
+        # Log error but don't raise - verification is non-critical
+        warn "[external_identity] Verification failed for #{column}: #{e.class} - #{e.message}"
+        false
+      end
+    end
+
+    # Verify all external identities with verifier callbacks
+    #
+    # Performs health checks on all configured external identities.
+    # Skips columns without verifiers or with nil values.
+    # Non-critical - continues checking all columns even if some fail.
+    #
+    # @return [Hash<Symbol, Boolean>] Results per column with verifier
+    #
+    # @example
+    #   verify_all_external_identities
+    #   # => {stripe_customer_id: true, github_user_id: false}
+    def verify_all_external_identities
+      results = {}
+      external_identity_columns_config.each do |column, config|
+        next unless config[:verifier]
+
+        value = account ? account[column] : nil
+        next if value.nil? # Skip nil values
+
+        results[column] = verify_external_identity(column)
+      end
+      results
+    end
+
+    # Verify handshake between external identity and verification token
+    #
+    # Security-critical verification that checks the external identity
+    # value against a verification token (e.g., OAuth state, CSRF token).
+    # MUST raise on failure by default - this is security-critical.
+    #
+    # @param column [Symbol] Column name
+    # @param value [Object] External identity value to verify
+    # @param token [Object] Verification token (e.g., OAuth state)
+    # @return [Boolean] True if handshake verified
+    # @raise [RuntimeError] If handshake fails (security-critical)
+    #
+    # @example OAuth CSRF protection
+    #   verify_handshake(:github_user_id, user_info['id'], params['state'])
+    #
+    # @example Team invite verification
+    #   verify_handshake(:team_id, invite.team_id, invite.token)
+    def verify_handshake(column, value, token)
+      config = external_identity_columns_config[column]
+
+      # Return true if no handshake configured (pass-through)
+      return true unless config
+      return true unless config[:handshake]
+
+      # Apply formatter if present
+      formatted_value = if config[:formatter]
+                          instance_exec(value, &config[:formatter])
+                        else
+                          value
+                        end
+
+      # Execute handshake callback
+      # Security-critical: MUST raise on failure
+      result = instance_exec(formatted_value, token, &config[:handshake])
+
+      if result
+        true
+      else
+        raise "Handshake verification failed for #{column}"
+      end
     end
 
     # Generate external identities during account creation

@@ -13,7 +13,7 @@ create_table :<%= pluralize(table_prefix) %> do
 <% else -%>
   String :email, null: false
 <% end -%>
-  Integer :status, null: false, default: 1
+  Integer :status_id, null: false, default: 1
 <% if db.supports_partial_indexes? -%>
   index :email, unique: true, where: { status: [1, 2] }
 <% else -%>
