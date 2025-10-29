@@ -147,7 +147,7 @@ module Rodauth
         alter_block = ["alter_table(:#{table_name}) do"]
 
         columns.each do |col|
-          # Map Ruby type symbol to Sequel column type
+          # Map Ruby type symbol or class to Sequel column type
           column_type = map_column_type(col[:type])
 
           # Build options array
@@ -234,16 +234,24 @@ module Rodauth
       columns_by_table.each do |table_name, columns|
         db.alter_table(table_name.to_sym) do
           columns.each do |col|
-            # Map Ruby type symbol to Sequel column type
-            # Use the symbol directly - Sequel handles type mapping
-            column_type = case col[:type]
-                         when :String, :Text then String
-                         when :Integer then Integer
-                         when :Bignum, :BigDecimal then :Bignum
-                         when :Boolean then TrueClass
-                         when :Date then Date
-                         when :DateTime, :Time then DateTime
-                         else String
+            # Map Ruby type symbol or class to Sequel column type
+            # Handle both Symbol (:Integer) and Class (Integer) forms
+            # Note: Can't use case/when with Class constants directly, use if/elsif
+            type = col[:type]
+            column_type = if type == String || type == :String || type == :Text
+                           String
+                         elsif type == Integer || type == :Integer
+                           Integer
+                         elsif type == :Bignum || type == :BigDecimal
+                           :Bignum
+                         elsif type == TrueClass || type == FalseClass || type == :Boolean
+                           TrueClass
+                         elsif type == Date || type == :Date
+                           Date
+                         elsif type == DateTime || type == Time || type == :DateTime || type == :Time
+                           DateTime
+                         else
+                           String
                          end
 
             # Build column options
@@ -484,46 +492,48 @@ module Rodauth
       end
     end
 
-    # Map column type symbol to Sequel migration code representation
+    # Map column type symbol or class to Sequel migration code representation
     #
-    # @param type [Symbol] Column type (:String, :Integer, etc.)
+    # @param type [Symbol, Class] Column type (:String, String, :Integer, Integer, etc.)
     # @return [String] Sequel column type code
     def map_column_type(type)
-      case type
-      when :String, :Text
+      # Handle both Symbol and Class forms
+      # Note: Can't use case/when with Class constants directly, use equality checks
+      if type == String || type == :String || type == :Text
         "String"
-      when :Integer
+      elsif type == Integer || type == :Integer
         "Integer"
-      when :Bignum, :BigDecimal
+      elsif type == :Bignum || type == :BigDecimal
         "Bignum"
-      when :Boolean
+      elsif type == TrueClass || type == FalseClass || type == :Boolean
         "TrueClass"
-      when :Date
+      elsif type == Date || type == :Date
         "Date"
-      when :DateTime, :Time
+      elsif type == DateTime || type == Time || type == :DateTime || type == :Time
         "DateTime"
       else
         "String"  # Default to String for unknown types
       end
     end
 
-    # Map column type symbol to Sequel execution type
+    # Map column type symbol or class to Sequel execution type
     #
-    # @param type [Symbol] Column type (:String, :Integer, etc.)
-    # @return [Symbol] Sequel column type for execution
+    # @param type [Symbol, Class] Column type (:String, String, :Integer, Integer, etc.)
+    # @return [Symbol, Class] Sequel column type for execution
     def map_column_type_for_execution(type)
-      case type
-      when :String, :Text
+      # Handle both Symbol and Class forms
+      # Note: Can't use case/when with Class constants directly, use equality checks
+      if type == String || type == :String || type == :Text
         String
-      when :Integer
+      elsif type == Integer || type == :Integer
         Integer
-      when :Bignum, :BigDecimal
+      elsif type == :Bignum || type == :BigDecimal
         :Bignum
-      when :Boolean
+      elsif type == TrueClass || type == FalseClass || type == :Boolean
         TrueClass
-      when :Date
+      elsif type == Date || type == :Date
         Date
-      when :DateTime, :Time
+      elsif type == DateTime || type == Time || type == :DateTime || type == :Time
         DateTime
       else
         String  # Default to String for unknown types
