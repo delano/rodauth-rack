@@ -613,7 +613,18 @@ module Rodauth
       # Return early if no columns to add
       return if columns_to_add.empty?
 
-      # Redefine account_select on the singleton class to wrap it
+      # Redefine account_select on the Auth subclass to wrap it
+      #
+      # NOTE: We use self.class.send(:define_method) rather than define_singleton_method
+      # because in Rodauth's architecture, each configuration gets its own Rodauth::Auth
+      # SUBCLASS (not just instance). Defining on self.class ensures the method is available
+      # on all runtime instances of this particular Auth subclass, which is what we need.
+      # Using define_singleton_method would only affect the temporary configuration instance.
+      #
+      # Capturing current_select at configuration time (rather than calling account_select
+      # dynamically) is intentional - it preserves the configured state from post_configure,
+      # which runs after all user configuration is complete. This prevents infinite recursion
+      # and ensures we build on the base configuration's account_select value.
       self.class.send(:define_method, :account_select) do
         # Use the captured value from configuration time
         cols = current_select
