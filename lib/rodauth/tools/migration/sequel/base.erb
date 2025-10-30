@@ -1,5 +1,14 @@
 <%# lib/rodauth/tools/migration/sequel/base.erb %>
 
+db = self
+<% if db.database_type == :postgres -%>
+begin
+  run "CREATE EXTENSION IF NOT EXISTS citext"
+rescue NoMethodError # migration is being reverted
+end
+<% end -%>
+
+# Sequel extension
 extension :date_arithmetic
 
 # Used by the account verification and close account features
@@ -14,7 +23,6 @@ create_table(:<%= table_prefix %>_password_hashes) do
   String :password_hash, null: false
 end
 
-db = self
 create_table(:<%= pluralize(table_prefix) %>) do
   primary_key :id, type: :Bignum
   foreign_key :status_id, :<%= table_prefix %>_statuses, null: false, default: 1

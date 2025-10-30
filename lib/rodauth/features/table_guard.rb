@@ -69,9 +69,13 @@ module Rodauth
     auth_methods(
       :check_required_tables!,
       :missing_tables,
+      :missing_columns,
       :all_table_methods,
       :list_all_required_tables,
-      :table_status
+      :list_all_required_columns,
+      :table_status,
+      :column_status,
+      :register_required_column
     )
 
     # Use auth_cached_method for table_configuration so it's computed
@@ -79,6 +83,10 @@ module Rodauth
     # - Normal web request flow (post_configure runs on throwaway instance)
     # - Console interrogation (new instances need access to configuration)
     auth_cached_method :table_configuration
+
+    # Use auth_cached_method for column_requirements so it persists across instances
+    # Column requirements are registered dynamically by features like external_identity
+    auth_cached_method :column_requirements
 
     # Runs after configuration is complete
     #
@@ -90,7 +98,9 @@ module Rodauth
       super if defined?(super)
 
       # Check tables based on mode (uses lazy-loaded table_configuration)
-      check_required_tables! if should_check_tables?
+      # Always check if sequel_mode is set (even in silent mode), since sequel_mode
+      # indicates we want to create/generate even if we don't want validation messages
+      check_required_tables! if should_check_tables? || table_guard_sequel_mode
     end
 
     # Override hook_action to check table status
@@ -137,18 +147,32 @@ module Rodauth
       config
     end
 
+    # Internal method called by auth_cached_method :column_requirements
+    #
+    # Initializes and returns column requirements hash. This is called lazily
+    # per-instance and the result is cached in @column_requirements.
+    #
+    # Structure: { table_name => { column_name => { type:, null:, feature: } } }
+    #
+    # @return [Hash<Symbol, Hash<Symbol, Hash>>] Column requirements by table
+    def _column_requirements
+      {}
+    end
+
     # Check required tables and handle based on mode
     #
     # This is the main entry point for table validation
     def check_required_tables!
       missing = missing_tables
+      missing_cols = missing_columns
 
       # Special case: :recreate and :drop modes always run, even when no tables are missing
-      if missing.empty? && ![:recreate, :drop].include?(table_guard_sequel_mode)
+      if missing.empty? && missing_cols.empty? && ![:recreate, :drop].include?(table_guard_sequel_mode)
         rodauth_info('')
         rodauth_info("─" * 70)
-        rodauth_info("✅ TableGuard: All required tables exist")
+        rodauth_info("✅ TableGuard: All required tables and columns exist")
         rodauth_info("   #{table_configuration.size} tables validated successfully")
+        rodauth_info("   #{list_all_required_columns.size} columns validated successfully") if list_all_required_columns.any?
         rodauth_info("─" * 70)
         rodauth_info('')
         return
@@ -157,8 +181,11 @@ module Rodauth
       # Handle based on validation mode (unless recreate/drop mode which handles its own validation)
       handle_table_guard_mode(missing) unless [:recreate, :drop].include?(table_guard_sequel_mode)
 
+      # Handle missing columns separately if validation mode passes
+      handle_column_guard_mode(missing_cols) if missing_cols.any? && ![:recreate, :drop].include?(table_guard_sequel_mode)
+
       # Generate Sequel if configured
-      handle_sequel_generation(missing) if table_guard_sequel_mode
+      handle_sequel_generation(missing, missing_cols) if table_guard_sequel_mode
     end
 
     # Get list of tables that are missing
@@ -241,7 +268,220 @@ module Rodauth
       end
     end
 
+    # Register a required column for validation and generation
+    #
+    # This method allows features like external_identity to register
+    # column requirements that should be validated and optionally
+    # created via ALTER TABLE statements.
+    #
+    # @param table_name [Symbol] Table name (e.g., :accounts)
+    # @param column_def [Hash] Column definition with keys:
+    #   - :name [Symbol] Column name (required)
+    #   - :type [Symbol] Column type (default: :String)
+    #   - :null [Boolean] Allow NULL (default: true)
+    #   - :default [Object] Default value (optional)
+    #   - :unique [Boolean] Unique constraint (default: false)
+    #   - :size [Integer] Column size for strings (optional)
+    #   - :index [Boolean, Hash] Create index (default: false)
+    #   - :feature [Symbol] Feature that requires this column (default: :unknown)
+    #
+    # @example
+    #   register_required_column(:accounts, {
+    #     name: :stripe_customer_id,
+    #     type: :String,
+    #     null: true,
+    #     unique: true,
+    #     index: true,
+    #     feature: :external_identity
+    #   })
+    def register_required_column(table_name, column_def)
+      table_name = table_name.to_sym
+      column_name = column_def[:name].to_sym
+
+      # Initialize table entry if needed
+      column_requirements[table_name] ||= {}
+
+      # Store column definition with all Sequel options
+      column_requirements[table_name][column_name] = {
+        type: column_def[:type] || :String,
+        null: column_def.fetch(:null, true),
+        default: column_def[:default],
+        unique: column_def[:unique],
+        size: column_def[:size],
+        index: column_def[:index],
+        feature: column_def[:feature] || :unknown
+      }
+
+      rodauth_debug("[table_guard] Registered required column #{table_name}.#{column_name} (#{column_def[:feature]})")
+    end
+
+    # Get missing columns across all registered requirements
+    #
+    # @return [Array<Hash>] Array of missing column information
+    def missing_columns
+      result = []
+
+      column_requirements.each do |table_name, columns|
+        # Skip if table doesn't exist yet
+        next unless table_exists?(table_name)
+
+        # Get actual columns from database
+        actual_columns = db.schema(table_name).map { |col| col[0] }
+
+        # Check each required column
+        columns.each do |column_name, column_def|
+          next if actual_columns.include?(column_name)
+
+          result << {
+            table: table_name,
+            column: column_name,
+            type: column_def[:type],
+            null: column_def[:null],
+            default: column_def[:default],
+            unique: column_def[:unique],
+            size: column_def[:size],
+            index: column_def[:index],
+            feature: column_def[:feature]
+          }
+        end
+      end
+
+      result
+    end
+
+    # List all required columns
+    #
+    # @return [Array<Hash>] Array of column requirements
+    def list_all_required_columns
+      result = []
+
+      column_requirements.each do |table_name, columns|
+        columns.each do |column_name, column_def|
+          result << {
+            table: table_name,
+            column: column_name,
+            type: column_def[:type],
+            null: column_def[:null],
+            default: column_def[:default],
+            unique: column_def[:unique],
+            size: column_def[:size],
+            index: column_def[:index],
+            feature: column_def[:feature]
+          }
+        end
+      end
+
+      result.sort_by { |col| [col[:table].to_s, col[:column].to_s] }
+    end
+
+    # Get detailed status for all columns
+    #
+    # @return [Array<Hash>] Status information for each column
+    def column_status
+      result = []
+
+      column_requirements.each do |table_name, columns|
+        # Get actual columns if table exists
+        actual_columns = if table_exists?(table_name)
+                           db.schema(table_name).map { |col| col[0] }
+                         else
+                           []
+                         end
+
+        columns.each do |column_name, column_def|
+          result << {
+            table: table_name,
+            column: column_name,
+            type: column_def[:type],
+            null: column_def[:null],
+            default: column_def[:default],
+            unique: column_def[:unique],
+            size: column_def[:size],
+            index: column_def[:index],
+            feature: column_def[:feature],
+            exists: actual_columns.include?(column_name),
+            table_exists: table_exists?(table_name)
+          }
+        end
+      end
+
+      result
+    end
+
     private
+
+    # Handle column validation based on mode setting
+    #
+    # @param missing_cols [Array<Hash>] Missing column information
+    def handle_column_guard_mode(missing_cols)
+      return if missing_cols.empty?
+
+      # Check if table_guard_mode is a block by inspecting method arity
+      mode_method = method(:table_guard_mode)
+
+      # If method expects parameters, it's a custom block handler
+      if mode_method.arity > 0
+        # Call with appropriate arguments based on arity
+        result = case mode_method.arity
+                 when 1 then table_guard_mode(missing_cols)
+                 else table_guard_mode(missing_cols, column_requirements)
+                 end
+
+        case result
+        when :error, :raise, true
+          raise Rodauth::ConfigurationError, build_missing_columns_message(missing_cols)
+        when String
+          raise Rodauth::ConfigurationError, result
+          # :continue, nil, false means don't raise
+        end
+        return
+      end
+
+      # Safe to call without arguments - get the mode value
+      mode = table_guard_mode
+
+      # If it's a 0-arity Proc, call it
+      if mode.is_a?(Proc)
+        result = mode.call
+
+        case result
+        when :error, :raise, true
+          raise Rodauth::ConfigurationError, build_missing_columns_message(missing_cols)
+        when String
+          raise Rodauth::ConfigurationError, result
+          # :continue, nil, false means don't raise
+        end
+        return
+      end
+
+      # Handle symbol modes
+      case mode
+      when :silent, :skip, nil
+        rodauth_debug("[table_guard] Discovered #{list_all_required_columns.size} columns, skipping validation")
+
+      when :warn
+        rodauth_warn(build_missing_columns_message(missing_cols))
+
+      when :error
+        # Print distinctive message to error log but continue execution
+        rodauth_error(build_missing_columns_error(missing_cols))
+
+      when :raise
+        # Let the error propagate up
+        rodauth_error(build_missing_columns_error(missing_cols))
+        raise Rodauth::ConfigurationError, build_missing_columns_message(missing_cols)
+
+      when :halt, :exit
+        # Exit the process early
+        rodauth_error(build_missing_columns_error(missing_cols))
+        exit(1)
+
+      else
+        raise Rodauth::ConfigurationError,
+              "Invalid table_guard_mode: #{mode.inspect}. " \
+              "Expected :silent, :skip, :warn, :error, :raise, :halt, or a Proc."
+      end
+    end
 
     # Handle table validation based on mode setting
     #
@@ -317,8 +557,9 @@ module Rodauth
     # Handle Sequel generation based on sequel mode
     #
     # @param missing [Array<Hash>] Missing table information
-    def handle_sequel_generation(missing)
-      generator = Rodauth::SequelGenerator.new(missing, self)
+    # @param missing_cols [Array<Hash>] Missing column information
+    def handle_sequel_generation(missing, missing_cols = [])
+      generator = Rodauth::SequelGenerator.new(missing, self, missing_cols)
 
       case table_guard_sequel_mode
       when :log
@@ -368,8 +609,9 @@ module Rodauth
 
         # Create all tables fresh (uses missing_tables which should now be all of them)
         current_missing = missing_tables
-        if current_missing.any?
-          generator_for_all = Rodauth::SequelGenerator.new(current_missing, self)
+        current_missing_cols = missing_columns
+        if current_missing.any? || current_missing_cols.any?
+          generator_for_all = Rodauth::SequelGenerator.new(current_missing, self, current_missing_cols)
           generator_for_all.execute_creates(db)
         end
 
@@ -527,6 +769,69 @@ module Rodauth
       hints << ""
       hints << "To disable checking: table_guard_mode :silent"
       hints << "To skip specific tables: table_guard_skip_tables #{unique_tables.inspect}"
+
+      hints.join("\n")
+    end
+
+    # Build user-friendly message for missing columns
+    #
+    # @param missing_cols [Array<Hash>] Missing column information
+    # @return [String] Formatted message
+    def build_missing_columns_message(missing_cols)
+      lines = ["Rodauth [table_guard] Missing required database columns!"]
+      lines << ""
+
+      # Group by table
+      by_table = missing_cols.group_by { |col| col[:table] }
+      by_table.each do |table, cols|
+        lines << "  Table: #{table}"
+        cols.each do |col|
+          lines << "    - Column: #{col[:column]} (type: #{col[:type]}, feature: #{col[:feature]})"
+        end
+      end
+
+      lines << ""
+      lines << build_column_migration_hints(missing_cols)
+
+      lines.join("\n")
+    end
+
+    # Build distinctive error message for columns
+    #
+    # @param missing_cols [Array<Hash>] Missing column information
+    # @return [String] Formatted error message
+    def build_missing_columns_error(missing_cols)
+      column_list = missing_cols.map { |c| "#{c[:table]}.#{c[:column]}" }.join(", ")
+      "CRITICAL: Missing Rodauth columns - #{column_list}"
+    end
+
+    # Build helpful hints for resolving missing columns
+    #
+    # @param missing_cols [Array<Hash>] Missing column information
+    # @return [String] Formatted hints
+    def build_column_migration_hints(missing_cols)
+      hints = []
+      hints << ""
+      hints << "⚠️  DATABASE OPERATIONS MAY FAIL UNTIL COLUMNS ARE ADDED"
+      hints << ""
+
+      if table_guard_sequel_mode.nil?
+        hints << "Quick fix for development (adds columns automatically):"
+        hints << "  table_guard_sequel_mode :create"
+        hints << ""
+        hints << "Other options:"
+        hints << "  table_guard_sequel_mode :log        # Show migration code"
+        hints << "  table_guard_sequel_mode :migration  # Generate migration file"
+        hints << ""
+      end
+
+      hints << "Required columns:"
+      missing_cols.each do |col|
+        hints << "  - #{col[:table]}.#{col[:column]} (#{col[:type]}, #{col[:feature]})"
+      end
+
+      hints << ""
+      hints << "To disable checking: table_guard_mode :silent"
 
       hints.join("\n")
     end
